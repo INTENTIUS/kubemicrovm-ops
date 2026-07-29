@@ -40,3 +40,5 @@ Whether pod identity association lives in CFN (preferred, idempotent) or as a sh
 Where generated CRD types live long-term. In-repo per the current design, or published as a package if a second consumer appears.
 
 How the kit tracks KubeMicroVM releases. Manual pinned bumps first. The chant self-upgrade cron pattern if the cadence justifies it.
+
+Whether to add the MicroVM control-plane surface to Floci. No emulator implements the API today. Floci plus k3d would give the kit a local end-to-end loop and unlock behold's local apply demo. Real work, and it lives in Floci rather than here, so it needs its own decision.
