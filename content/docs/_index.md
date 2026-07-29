@@ -16,5 +16,6 @@ Working design documents for the kit. Read them in order the first time.
 | [Lint rules]({{< relref "lint-rules" >}}) | What the kit checks at build time |
 | [Install Op]({{< relref "install-op" >}}) | How the estate deploys |
 | [Lifecycle]({{< relref "lifecycle" >}}) | How chant and the operator share the reconcile story |
+| [Operating with behold]({{< relref "behold" >}}) | What the estate looks like in the live control plane |
 | [Relation to MicrovmApp]({{< relref "microvm-app" >}}) | Where the operator-less path fits |
 | [Roadmap]({{< relref "roadmap" >}}) | Milestones and sequencing |
