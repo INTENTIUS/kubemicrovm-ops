@@ -55,6 +55,6 @@ behold holds no apply credentials. Its reads need describe and list only. For th
 
 There is no emulator path for this estate yet. No local emulator implements the MicroVM API today, both Floci and LocalStack lack the surface, so behold's turnkey local-apply demos do not translate. Preview and export work offline against source, the live overlay needs a real cluster and account.
 
-A standalone MicroVM emulator changes this, and one is now in design (m80, mudflaps-style, currently a local docs-only repo). Both the operator and the `microvm` CLI reach AWS through the SDK, which takes an endpoint override, so m80 plus k3d gives the kit a full local loop and behold its apply demo. The CloudFormation side follows separately in floci. See the [Roadmap]({{< relref "roadmap" >}})'s resolved section.
+A standalone MicroVM emulator changes this, and one is now in design ([m80](https://github.com/INTENTIUS/m80), mudflaps-style, docs-only so far). Both the operator and the `microvm` CLI reach AWS through the SDK, which takes an endpoint override, so m80 plus k3d gives the kit a full local loop and behold its apply demo. The CloudFormation side follows separately in floci. See the [Roadmap]({{< relref "roadmap" >}})'s resolved section.
 
 behold is also not a data-plane tool. Getting a token, execing into a VM, and tailing image build logs stay with the `microvm` CLI. The boundary is the same one the kit draws everywhere. Estate shape, drift, and deployment belong to chant and behold. The running VM belongs to the operator and its CLI.

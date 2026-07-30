@@ -11,6 +11,7 @@ Working design documents for the kit. Read them in order the first time.
 | Page | Question it answers |
 |------|---------------------|
 | [Positioning]({{< relref "positioning" >}}) | Why this kit exists and who it is for |
+| [The space]({{< relref "space" >}}) | Who else is here, the audience now and in a year, risks |
 | [The estate]({{< relref "estate" >}}) | What a KubeMicroVM consumer actually operates |
 | [Typed CRDs]({{< relref "typed-crds" >}}) | How the five CRDs become typed constructors |
 | [Lint rules]({{< relref "lint-rules" >}}) | What the kit checks at build time |
