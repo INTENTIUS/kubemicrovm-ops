@@ -40,3 +40,7 @@ Whether pod identity association lives in CFN (preferred, idempotent) or as a sh
 Where generated CRD types live long-term. In-repo per the current design, or published as a package if a second consumer appears.
 
 How the kit tracks KubeMicroVM releases. Manual pinned bumps first. The chant self-upgrade cron pattern if the cadence justifies it.
+
+## Resolved
+
+The emulator question is settled. No emulator implements the MicroVM API anywhere, verified 2026-07-29 across moto, LocalStack, fakecloud, ministack, floci upstream and forks, and every public repo touching the API. The decision is both homes with different jobs, sequenced. A standalone emulator in the mudflaps mold comes first, owned cadence, small container the KubeMicroVM community can run next to k3d, full fidelity. A floci service module follows when the CloudFormation path matters, since `AWS::Lambda::MicrovmImage` emulation can only live where the CFN engine lives, scoped to what CFN provisioning needs. One language-agnostic conformance suite is built before either implementation and runs against both plus real AWS. The design lives in its own repo, working title squib, currently local. The kit's local end-to-end loop in M3 and M4 takes a dependency on its M3.
