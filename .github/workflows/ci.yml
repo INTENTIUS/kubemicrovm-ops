@@ -32,11 +32,9 @@ jobs:
       - name: test
         run: npm test
 
-  # The design site is part of the deliverable, and a broken `relref` is a
-  # build failure rather than a bad link — so building it is a real gate even
-  # while nothing publishes it. GitHub Pages is unavailable on this repo's
-  # plan while it stays private; the deploy job goes back in the day that
-  # changes, or the site moves to its permanent home in M5.
+  # A broken `relref` is a build failure rather than a bad link, so building
+  # the site gates a class of mistake nothing else here catches. The deploy
+  # lives in docs.yml, which only runs on main.
   docs:
     runs-on: ubuntu-latest
     timeout-minutes: 5
