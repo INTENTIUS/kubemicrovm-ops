@@ -83,7 +83,9 @@ just prod-live-e2e
 just prod-ha-live-e2e
 ```
 
-The local recipes are the ones that run in CI. The live recipes are on-demand, gated, and each one names its cost in its comment.
+`minimal` and `prod-ha` run on every push and pull request, on a hosted runner with no AWS account — `.github/workflows/local-e2e.yml`. It applies `prod-ha` over a live `minimal` estate rather than from scratch, so the tier change is exercised too, and asserts convergence rather than a clean apply: the image reaching `SUCCESSFUL`, the connector `ACTIVE`, and `readyReplicas` equal to the tier's floor. `prod` declares nothing `prod-ha` does not, so it is checked by the tier matrix and not deployed.
+
+The live recipes are on-demand, gated, and each one names its cost in its comment.
 
 ## Adoption seams
 

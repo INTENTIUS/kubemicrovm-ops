@@ -163,14 +163,7 @@ kubectl -n "${NS}" set env deploy/kube-microvm-operator \
 kubectl -n "${NS}" rollout status deploy/kube-microvm-operator --timeout=300s
 
 echo "==> estate at tier ${TIER}"
-(cd "${ROOT}" && \
-    KMV_BUCKET_NAME="${BUCKET}" \
-    KMV_BUILD_ROLE_ARN="${BUILD_ROLE_ARN}" \
-    KMV_OPERATOR_ROLE_ARN="${OPERATOR_ROLE_ARN}" \
-    KMV_SUBNET_IDS="${KMV_SUBNET_IDS:-subnet-local-a,subnet-local-b}" \
-    KMV_SECURITY_GROUP_IDS="${KMV_SECURITY_GROUP_IDS:-sg-local}" \
-    npx chant build src/workload --lexicon k8s -o dist/workload.yaml >/dev/null)
-kubectl apply -f "${ROOT}/dist/workload.yaml" >/dev/null
+bash "$(dirname "$0")/apply-estate.sh" "${TIER}" >/dev/null
 
 echo
 echo "local target up at tier ${TIER}."

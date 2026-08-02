@@ -73,9 +73,9 @@ just synth          # both planes for the current tier and target
 
 `test/tier-matrix.test.ts` is the one worth knowing about. It builds all three tiers and checks every emitted spec field against the pinned CRD schemas, because a misspelled field in a custom resource is accepted by the API server and ignored by the controller. A typo in `className` is a VM silently running with the wrong policy, and nothing else catches it.
 
-### Requires an unreleased chant
+### Typed CRDs
 
-The typed classes for the five CRDs come from `@intentius/chant-lexicon-k8s`, which generates them from the pinned Helm chart. Until [chant#1310](https://github.com/INTENTIUS/chant/pull/1310) is released those classes carry no `metadata` property, so setting a name or a namespace needs an `as any` at every call site. This repo is written without the casts and needs the next lexicon release to typecheck.
+The typed classes for the five CRDs come from `@intentius/chant-lexicon-k8s`, which generates them from the same pinned Helm chart `crds/` is copied from. Needs 0.36.0 or later: before that, generated CRD classes carried no `metadata` property, so setting a name or a namespace meant an `as any` at every call site ([chant#1309](https://github.com/INTENTIUS/chant/issues/1309)).
 
 ## Related
 
