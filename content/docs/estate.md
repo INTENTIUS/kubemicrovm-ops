@@ -41,8 +41,6 @@ These are the references that today exist only as strings and that the kit turns
 
 ## Tiers
 
-Following the loom-on-chant tiering, the kit targets two shapes.
+Three named tiers, `minimal`, `prod` and `prod-ha`, parameterised off `naming.tier` with no tier-specific files. Whether the kit provisions a given prerequisite or references one you already have is a separate per-resource setting, not a tier. Both are on [Tiers and targets]({{< relref "tiers" >}}), along with the local and real deploy targets that cut across them.
 
-The reference-existing tier takes cluster name, VPC IDs, and optionally existing IAM as parameters and declares only what KubeMicroVM itself needs. This is the adoption default.
-
-The full-provision tier additionally declares the EKS cluster, VPC, and S3 bucket for teams standing up an isolated MicroVM environment from nothing.
+The "Kit declaration" column above describes the reference-existing default. Where it says a resource is a parameter, that is a seam that can be switched to provision it instead.
