@@ -1,0 +1,6 @@
+{
+  "tiers": {
+    "envVar": "KMV_TIER",
+    "values": ["minimal", "prod", "prod-ha"]
+  }
+}

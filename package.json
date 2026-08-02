@@ -1,0 +1,30 @@
+{
+  "name": "kubemicrovm-on-chant",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "KubeMicroVM adoption kit on chant — three tiers (minimal/prod/prod-ha) over two deploy targets (local floci+m80+k3d, or real AWS+EKS).",
+  "scripts": {
+    "tsc": "tsc --noEmit",
+    "lint": "chant lint .",
+    "test": "vitest run",
+    "build": "npm run tsc",
+    "synth:aws-plane": "chant build src/aws-plane --lexicon aws -o dist/aws-plane.template.json",
+    "synth:operator": "chant build src/operator --lexicon k8s -o dist/operator.yaml",
+    "synth:workload": "chant build src/workload --lexicon k8s -o dist/workload.yaml",
+    "synth": "npm run synth:aws-plane && npm run synth:operator && npm run synth:workload"
+  },
+  "dependencies": {
+    "@intentius/chant": "^0.34.1",
+    "@intentius/chant-lexicon-aws": "^0.34.1",
+    "@intentius/chant-lexicon-k8s": "^0.35.0"
+  },
+  "devDependencies": {
+    "@types/js-yaml": "^4.0.9",
+    "@types/node": "^25.9.3",
+    "js-yaml": "^5.2.3",
+    "tsx": "^4.21.0",
+    "typescript": "^5.9.3",
+    "vitest": "^4.1.9"
+  }
+}
