@@ -32,6 +32,27 @@ jobs:
       - name: test
         run: npm test
 
+  # The design site is part of the deliverable, and a broken `relref` is a
+  # build failure rather than a bad link — so building it is a real gate even
+  # while nothing publishes it. GitHub Pages is unavailable on this repo's
+  # plan while it stays private; the deploy job goes back in the day that
+  # changes, or the site moves to its permanent home in M5.
+  docs:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+      - uses: peaceiris/actions-hugo@v3
+        with:
+          hugo-version: 'latest'
+          # The hugo-book theme's stylesheet is SCSS, which only the extended
+          # build transpiles. Without this the site fails with a TOCSS error
+          # naming book.scss.
+          extended: true
+      - run: hugo --minify
+
   # The CRDs in crds/ are copied from the pinned chart. If the chart moves and
   # they do not, the schema check in the tier matrix is checking the kit
   # against a version nobody deploys.
