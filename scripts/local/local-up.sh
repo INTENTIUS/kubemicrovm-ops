@@ -31,10 +31,11 @@ esac
 CLUSTER="${CLUSTER:-kubemicrovm-local}"
 NS="${NS:-kube-microvm}"
 KMV_NAMESPACE="${KMV_NAMESPACE:-microvm-demo}"
-# floci/floci:latest built from lex00/floci. The fork carries fixes that have
-# not reached floci-io/floci yet — CloudFormation dropping a security group's
-# rules and tags chief among them — so a stock image is not interchangeable
-# once a tier declares anything CloudFormation has to apply properly.
+# Stock floci/floci:latest is enough for what the AWS plane declares today —
+# an S3 bucket, a bucket policy, two IAM roles and three managed policies all
+# create cleanly on it, verified 2026-08-02. Point this at a build of
+# lex00/floci if the estate grows anything CloudFormation mishandles upstream;
+# security group rules and tags are dropped there, and that fork fixes them.
 FLOCI_IMAGE="${FLOCI_IMAGE:-floci/floci:latest}"
 FLOCI_PORT="${FLOCI_PORT:-4566}"
 M80_IMAGE="${M80_IMAGE:-ghcr.io/intentius/m80:v0.2.0}"

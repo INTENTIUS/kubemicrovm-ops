@@ -27,7 +27,7 @@ Both emulators answer as account `000000000000`, so a bucket and a role ARN mint
 
 Every piece is overridable: `FLOCI_PORT`, `FLOCI_IMAGE`, `M80_IMAGE`, `M80_PORT`, `CLUSTER`, `CHART_VERSION`. Two are worth knowing about by default.
 
-**floci must be the fork.** `floci/floci:latest` built from [lex00/floci](https://github.com/lex00/floci). The fork carries fixes that have not reached upstream — CloudFormation dropping a security group's rules and tags chief among them — so a stock image is not interchangeable once a tier declares anything CloudFormation has to apply properly.
+**Stock floci is enough, for now.** Everything the AWS plane declares — an S3 bucket, a bucket policy, two IAM roles and three managed policies — creates cleanly on `floci/floci:latest` from Docker Hub. That was worth checking rather than assuming: an earlier version of this page said the fork was required, and it was not, because the one upstream gap that would bite is CloudFormation dropping a security group's rules and tags, and this kit declares no security groups. Point `FLOCI_IMAGE` at a build of [lex00/floci](https://github.com/lex00/floci) if the estate grows one.
 
 **m80 must be built from main, not pulled.** The published `ghcr.io/intentius/m80:v0.2.0` predates `-serve-sts`, and so does `:latest`. Without that flag nothing answers the operator's startup gate and it never becomes ready. Build it and pass the tag:
 

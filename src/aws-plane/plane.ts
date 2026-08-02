@@ -174,6 +174,12 @@ export const operatorRole =
       })
     : undefined;
 
+// `Roles` takes role NAMES, not ARNs — which is what `Ref` on an
+// AWS::IAM::Role returns, and what the upstream template passes as
+// `!Ref OperatorRole`. Passing `.Arn` produces a stack that fails to create
+// with "The role with name arn:aws:iam::...:role/... cannot be found".
+const operatorRoleRefs = operatorRole ? [Ref(operatorRole) as unknown as string] : [];
+
 /**
  * Every MicroVMs action the operator calls, from the upstream template.
  *
@@ -187,7 +193,7 @@ export const microvmPolicy =
     ? new ManagedPolicy({
         ManagedPolicyName: microvmPolicyName,
         Description: "Least-privilege policy for the KubeMicroVM operator",
-        Roles: [operatorRole.Arn],
+        Roles: operatorRoleRefs,
         PolicyDocument: {
           Version: "2012-10-17",
           Statement: [
@@ -248,7 +254,7 @@ export const passBuildRolePolicy =
     ? new ManagedPolicy({
         ManagedPolicyName: passRolePolicyName,
         Description: "Allows the operator to pass the build role to the MicroVM image service",
-        Roles: [operatorRole.Arn],
+        Roles: operatorRoleRefs,
         PolicyDocument: {
           Version: "2012-10-17",
           Statement: [
@@ -273,7 +279,7 @@ export const networkConnectorPolicy =
     ? new ManagedPolicy({
         ManagedPolicyName: connectorPolicyName,
         Description: "EC2 and IAM permissions for Lambda network connector ENI management",
-        Roles: [operatorRole.Arn],
+        Roles: operatorRoleRefs,
         PolicyDocument: {
           Version: "2012-10-17",
           Statement: [
