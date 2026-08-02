@@ -91,7 +91,11 @@ export default {
 
     // ── Workload inputs ─────────────────────────────────────────────────
     workloadNamespace: { type: "string", default: "microvm-demo", env: "KMV_NAMESPACE" },
-    operatorNamespace: { type: "string", default: "kube-microvm-system", env: "KMV_OPERATOR_NAMESPACE" },
+    // Pinned by the chart, not chosen by us: every template in
+    // kube-microvm-operator 1.0.11 hardcodes `namespace: kube-microvm`
+    // and ignores helm's `-n`, so installing anywhere else fails with
+    // `namespaces "kube-microvm" not found`.
+    operatorNamespace: { type: "string", default: "kube-microvm", env: "KMV_OPERATOR_NAMESPACE" },
     /** S3 key of the artifact the image is built from. */
     sourceKey: { type: "string", default: "app/app.zip", env: "KMV_SOURCE_KEY" },
     /** Optional base image ARN; the service picks a default when unset. */

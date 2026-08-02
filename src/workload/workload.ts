@@ -42,7 +42,13 @@ const labels = naming.labels();
 const tags = naming.tags();
 const region = namingParams.region;
 
-const imageName = naming.name("image", { service: "k8sObject" });
+// The image name carries the tier, and that is not cosmetic.
+// `MicroVMImage.spec.memorySizeMiB` is immutable after creation — the
+// admission webhook rejects a change with "spec.memorySizeMiB is immutable
+// after image creation" — and memory is one of the things a tier sets. An
+// image named without the tier would make `minimal` -> `prod` an apply that
+// cannot succeed. Named with it, the two tiers own two images.
+const imageName = naming.name(`${namingParams.tier}-image`, { service: "k8sObject" });
 const className = naming.name("class", { service: "k8sObject" });
 const networkName = naming.name("network", { service: "k8sObject" });
 const vmName = naming.name("vm", { service: "k8sObject" });
@@ -72,8 +78,9 @@ export const operatorNs = new Namespace({ metadata: operatorNsMetadata });
 export const workloadNs = new Namespace({ metadata: workloadNsMetadata });
 
 const imageSource = { s3Bucket: bucketName, s3Key: sourceKey };
-const imageSpecBase = {
+const imageSpec = {
   source: imageSource,
+  baseImageArn,
   buildRoleArn,
   region,
   memorySizeMiB: profile.image.memorySizeMiB,
@@ -81,9 +88,6 @@ const imageSpecBase = {
   buildTimeoutSeconds: profile.image.buildTimeoutSeconds,
   autoActivate: profile.image.autoActivate,
 };
-// The service picks a base image when none is named, so an unset ARN means the
-// key is absent rather than present and empty.
-const imageSpec = baseImageArn ? { ...imageSpecBase, baseImageArn } : imageSpecBase;
 
 /**
  * The image. Present at every tier, and the only place memory is set — memory

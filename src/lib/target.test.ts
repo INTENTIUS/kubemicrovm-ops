@@ -2,6 +2,7 @@ import { describe, expect, test } from "vitest";
 import {
   DEFAULT_MICROVM_ENDPOINT,
   EMULATOR_ACCOUNT_ID,
+  optionalAccountId,
   resolveAccountId,
   resolveTarget,
 } from "./target";
@@ -57,5 +58,12 @@ describe("account id resolution", () => {
   test("the real target refuses to invent an account id", () => {
     const real = resolveTarget({});
     expect(() => resolveAccountId(real, undefined)).toThrow(/accountId is required/);
+  });
+
+  test("a stack that never emits an account id gets undefined instead of a throw", () => {
+    const real = resolveTarget({});
+    expect(optionalAccountId(real, undefined)).toBeUndefined();
+    const local = resolveTarget({ awsEndpointUrl: "http://localhost:4566" });
+    expect(optionalAccountId(local, undefined)).toBe(EMULATOR_ACCOUNT_ID);
   });
 });

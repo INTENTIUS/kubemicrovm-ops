@@ -1,6 +1,7 @@
 import { describe, expect, test } from "vitest";
 import {
   MAX_DURATION_SECONDS,
+  NETWORK_PROTOCOLS,
   MEMORY_SIZES_MIB,
   TIERS,
   hasClass,
@@ -66,6 +67,14 @@ describe("tier profiles", () => {
 
     // The image is identical — the tiers differ in shape, not in artifact.
     expect(ha.image).toEqual(prod.image);
+  });
+
+  test("the connector protocol is one the service accepts, which the CRD does not constrain", () => {
+    for (const tier of TIERS) {
+      const network = tierProfile(tier).network;
+      if (!network) continue;
+      expect(NETWORK_PROTOCOLS).toContain(network.networkProtocol);
+    }
   });
 
   test("no tier asks for a duration beyond the service's 8h ceiling", () => {

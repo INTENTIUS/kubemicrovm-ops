@@ -12,7 +12,7 @@
 import { params } from "@intentius/chant/params";
 import type { NamingParams } from "../lib/naming";
 import { type Tier, tierProfile } from "../lib/tiers";
-import { resolveAccountId, resolveTarget } from "../lib/target";
+import { optionalAccountId, resolveTarget } from "../lib/target";
 
 export const target = resolveTarget({
   awsEndpointUrl: params.awsEndpointUrl as string | undefined,
@@ -24,39 +24,60 @@ export const tier: Tier = (params.tier as Tier | undefined) ?? "minimal";
 /** Every tier difference in the Kubernetes plane comes from here. */
 export const profile = tierProfile(tier);
 
+export const region = optional(params.region) ?? "us-east-1";
+
 export const namingParams: NamingParams = {
   project: (params.project as string | undefined) ?? "kmv",
   env: (params.env as string | undefined) ?? "dev",
   instance: (params.instance as string | undefined) ?? "a",
   tier,
-  region: (params.region as string | undefined) ?? "us-east-1",
-  accountId: resolveAccountId(target, params.accountId as string | undefined),
+  region,
+  accountId: optionalAccountId(target, optional(params.accountId)),
   owner: (params.owner as string | undefined) ?? "platform",
 };
 
 export const workloadNamespace = (params.workloadNamespace as string | undefined) ?? "microvm-demo";
-export const operatorNamespace = (params.operatorNamespace as string | undefined) ?? "kube-microvm-system";
+export const operatorNamespace = (params.operatorNamespace as string | undefined) ?? "kube-microvm";
 
 /** Where the image is built from. The bucket is the AWS plane's output. */
-export const bucketName = params.bucketName as string | undefined;
+export const bucketName = optional(params.bucketName);
 export const sourceKey = (params.sourceKey as string | undefined) ?? "app/app.zip";
 
 /** `MicroVMImage.spec.buildRoleArn` — the role the build service assumes. */
-export const buildRoleArn = params.buildRoleArn as string | undefined;
+export const buildRoleArn = optional(params.buildRoleArn);
 
 /** `MicroVMNetwork.spec.operatorRoleArn` — the role the connector runs as. */
-export const operatorRoleArn = params.operatorRoleArn as string | undefined;
+export const operatorRoleArn = optional(params.operatorRoleArn);
 
-/** Optional; the service picks a default base image when unset. */
-export const baseImageArn = params.baseImageArn as string | undefined;
+/**
+ * `MicroVMImage.spec.baseImageArn`. Not optional in practice: the CRD schema
+ * does not mark it required, but the service rejects a create without it —
+ * `Value null at 'baseImageArn' failed to satisfy constraint: Member must not
+ * be null`. Omitting it fails at reconcile, long after a clean apply.
+ *
+ * The default is the AWS-managed base image their own `setup-test-env.sh`
+ * prints, with the region substituted.
+ */
+export const baseImageArn =
+  optional(params.baseImageArn) ?? `arn:aws:lambda:${region}:aws:microvm-image:al2023-1`;
 
 /**
  * Comma-separated, from the existing VPC. The production tiers take as many as
  * their profile's `subnetCount` — one for `prod`, two for `prod-ha`, which is
  * the whole of what makes a deployment multi-AZ once the subnets are an input.
  */
-export const subnetIds = splitList(params.subnetIds as string | undefined);
-export const securityGroupIds = splitList(params.securityGroupIds as string | undefined);
+export const subnetIds = splitList(optional(params.subnetIds));
+export const securityGroupIds = splitList(optional(params.securityGroupIds));
+
+/**
+ * An unset build parameter arrives as `null`, not `undefined`, so `??` alone
+ * does not reach a default and the value serializes as an explicit `null`.
+ * That is how `baseImageArn: null` first reached the cluster and was rejected
+ * by the service rather than by the schema.
+ */
+function optional(value: unknown): string | undefined {
+  return typeof value === "string" && value.trim() ? value : undefined;
+}
 
 function splitList(raw?: string): string[] {
   return (raw ?? "")

@@ -58,12 +58,26 @@ export function resolveTarget(inputs: {
  * there the way it is against real AWS.
  */
 export function resolveAccountId(config: TargetConfig, accountId?: string): string {
-  const supplied = emptyToUndefined(accountId);
+  const supplied = optionalAccountId(config, accountId);
   if (supplied) return supplied;
-  if (config.target === "local") return EMULATOR_ACCOUNT_ID;
   throw new Error(
     "accountId is required against the real target. Set AWS_ACCOUNT_ID, or set AWS_ENDPOINT_URL to build for the local target.",
   );
+}
+
+/**
+ * The same resolution without the throw, for a stack that never puts an account
+ * id in its output.
+ *
+ * The Kubernetes plane is one: it names roles and buckets that the AWS plane
+ * supplies as ARNs, so it has no ARN of its own to compose. Throwing there made
+ * the project unbuildable — and so unviewable in behold — for anyone who had
+ * not exported credentials, over a value the manifests never contain.
+ */
+export function optionalAccountId(config: TargetConfig, accountId?: string): string | undefined {
+  const supplied = emptyToUndefined(accountId);
+  if (supplied) return supplied;
+  return config.target === "local" ? EMULATOR_ACCOUNT_ID : undefined;
 }
 
 /**

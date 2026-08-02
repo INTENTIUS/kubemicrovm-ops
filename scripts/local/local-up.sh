@@ -29,7 +29,7 @@ case "${TIER}" in
 esac
 
 CLUSTER="${CLUSTER:-kubemicrovm-local}"
-NS="${NS:-kube-microvm-system}"
+NS="${NS:-kube-microvm}"
 KMV_NAMESPACE="${KMV_NAMESPACE:-microvm-demo}"
 # floci/floci:latest built from lex00/floci. The fork carries fixes that have
 # not reached floci-io/floci yet — CloudFormation dropping a security group's
@@ -184,7 +184,7 @@ else
 fi
 echo
 echo "  kubectl -n ${KMV_NAMESPACE} get microvms,microvmimages,microvmreplicasets"
-echo "  npx behold preview .          # the estate across both substrates"
+echo "  cd ../behold && npm run dev -- preview ../kubemicrovm-ops          # the estate across both substrates"
 echo
 echo "  Local validates that the estate declares and reconciles. It does not"
 echo "  validate that AWS will accept the roles at runtime: nothing fetches"

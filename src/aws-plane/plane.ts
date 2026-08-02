@@ -15,7 +15,7 @@
  * shape is preserved here: the role is a singleton, the association is not.
  */
 
-import { Bucket, ManagedPolicy, Ref, Role, PodIdentityAssociation, S3BucketPolicy } from "@intentius/chant-lexicon-aws";
+import { Bucket, ManagedPolicy, Ref, Role, PodIdentityAssociation, S3BucketPolicy, Sub, AWS } from "@intentius/chant-lexicon-aws";
 import { kmvNaming } from "../lib/naming";
 import {
   bucketMode,
@@ -47,7 +47,13 @@ const publicAccessBlock = {
   BlockPublicPolicy: true,
   RestrictPublicBuckets: true,
 };
-const serviceLinkedRoleArn = `arn:aws:iam::${namingParams.accountId}:role/aws-service-role/lambda.amazonaws.com/*`;
+// Composed by CloudFormation at deploy time rather than baked in at build
+// time. The account and partition are properties of wherever the stack lands,
+// not of the machine that ran the build — and requiring them at build time
+// made the project unbuildable, and so unviewable, without credentials.
+const serviceLinkedRoleArn = Sub`arn:${AWS.Partition}:iam::${AWS.AccountId}:role/aws-service-role/lambda.amazonaws.com/*`;
+const buildLogGroupArn = Sub`arn:${AWS.Partition}:logs:${AWS.Region}:${AWS.AccountId}:log-group:/aws/lambda/microvms/*`;
+const artifactObjectArn = `arn:aws:s3:::${artifactBucketName}/*`;
 
 /**
  * The artifact bucket the image build reads from. Public access is blocked
@@ -123,12 +129,12 @@ export const buildRole =
                 {
                   Effect: "Allow",
                   Action: ["s3:GetObject"],
-                  Resource: `arn:aws:s3:::${resolvedBucketName}/*`,
+                  Resource: artifactObjectArn,
                 },
                 {
                   Effect: "Allow",
                   Action: ["logs:CreateLogGroup", "logs:CreateLogStream", "logs:PutLogEvents"],
-                  Resource: `arn:aws:logs:${namingParams.region}:${namingParams.accountId}:log-group:/aws/lambda/microvms/*`,
+                  Resource: buildLogGroupArn,
                 },
               ],
             },

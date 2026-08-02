@@ -66,4 +66,4 @@ prod-ha-live-e2e:
 # Open the estate in behold at http://localhost:4600 — both substrates in one
 # graph, the tier picker switching between the three profiles.
 view:
-    npx behold preview .
+    cd ../behold && npm run dev -- preview ../kubemicrovm-ops

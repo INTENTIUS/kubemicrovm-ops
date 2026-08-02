@@ -63,9 +63,20 @@ export interface ClassProfile {
  * themselves are an input.
  */
 export interface NetworkProfile {
-  networkProtocol: string;
+  /**
+   * `MicroVMNetwork.spec.networkProtocol`. The CRD types this as an open
+   * string, but the service accepts only `IPv4` or `DualStack` — anything else
+   * fails at reconcile with "Member must satisfy enum value set: [IPv4,
+   * DualStack]". Constrained here so the schema's silence costs nobody a
+   * debugging session.
+   */
+  networkProtocol: NetworkProtocol;
   subnetCount: number;
 }
+
+/** The two values the service accepts, though the CRD schema does not say so. */
+export const NETWORK_PROTOCOLS = ["IPv4", "DualStack"] as const;
+export type NetworkProtocol = (typeof NETWORK_PROTOCOLS)[number];
 
 /**
  * How the VMs themselves are declared. `minimal` declares a single `MicroVM`;
@@ -133,7 +144,7 @@ const PROFILES: Record<Tier, TierProfile> = {
       ingressNetworkConnectors: ["ALL_INGRESS"],
       egressNetworkConnectors: ["INTERNET_EGRESS"],
     },
-    network: { networkProtocol: "TCP", subnetCount: 1 },
+    network: { networkProtocol: "IPv4", subnetCount: 1 },
     workload: {
       kind: "MicroVMReplicaSet",
       replicas: 1,
@@ -166,7 +177,7 @@ const PROFILES: Record<Tier, TierProfile> = {
       ingressNetworkConnectors: ["ALL_INGRESS"],
       egressNetworkConnectors: ["INTERNET_EGRESS"],
     },
-    network: { networkProtocol: "TCP", subnetCount: 2 },
+    network: { networkProtocol: "IPv4", subnetCount: 2 },
     workload: {
       kind: "MicroVMReplicaSet",
       replicas: 2,
