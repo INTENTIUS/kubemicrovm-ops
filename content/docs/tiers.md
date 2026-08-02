@@ -7,7 +7,7 @@ weight: 25
 
 The kit ships one source tree. Three axes vary independently over it, and keeping them separate is what stops the matrix collapsing into a pile of per-environment files.
 
-A *tier* is how much estate you want. `naming.tier` selects it, and no tier has its own files.
+A *tier* is how much estate you want. `KMV_TIER` selects it, and no tier has its own files.
 
 A *target* is where that estate deploys. Any tier can deploy to either target, and the target is chosen by whether `AWS_ENDPOINT_URL` is set. Nothing else in the source changes.
 
@@ -15,19 +15,33 @@ An *adoption seam* is whether the kit provisions a given prerequisite, reference
 
 ## Tiers
 
+Every row below is a field KubeMicroVM's own CRDs define at the pinned chart release. Nothing is invented to make the table symmetrical: where a tier has no answer for a knob, the resource carrying that knob is not declared at all. The table and `src/lib/tiers.ts` are the same thing written twice, and `test/tier-matrix.test.ts` checks the second one against the shipped schemas.
+
 | | `minimal` | `prod` | `prod-ha` |
 |---|---|---|---|
-| Intended use | Evaluate the kit, single namespace, laptop or dev cluster | Adoptable single-AZ deployment | Adoptable multi-AZ deployment |
-| MicroVMs | One `MicroVM` | `MicroVMReplicaSet`, 1 replica floor | `MicroVMReplicaSet`, 2 replica floor |
-| Memory | Service default, 2048 | Named `MicroVMClass` | Named `MicroVMClass` |
-| Networking | Managed defaults, no connector | `MicroVMNetwork` with VPC egress | `MicroVMNetwork` across multi-AZ subnets |
-| AWS prerequisites | S3 bucket, build role | Plus connector operator role, subnets, security groups | Plus a second availability zone |
-| Idle policy | None | Auto-resume | Auto-resume with a suspend cap |
+| Intended use | Evaluate the kit, one namespace, laptop or dev cluster | Adoptable single-AZ deployment | Adoptable multi-AZ deployment |
+| Which resource holds the VMs | One `MicroVM` | `MicroVMReplicaSet`, `replicas: 1` | `MicroVMReplicaSet`, `replicas: 2` |
+| Rolling update | Not applicable | `maxSurge: 1`, `maxUnavailable: 0`, `minReady: 1` | Same, `minReady: 2` |
+| `MicroVMImage.spec.memorySizeMiB` | 2048 | 4096 | 4096 |
+| `MicroVMImage.spec.maxVersionsToKeep` | 2 | 5 | 5 |
+| `MicroVMClass` | Not declared | Declared, VMs reference it by `className` | Declared |
+| Idle policy | Service defaults | `maxIdleDurationSeconds: 900`, `autoResumeEnabled: true`, `suspendedDurationSeconds: 3600` | Same |
+| Lifetime cap | None | None | `maximumDurationSeconds: 28800` |
+| `MicroVMNetwork` | Not declared, managed egress | Declared, `IPv4`, one subnet | Declared, `IPv4`, two subnets |
+| AWS prerequisites | S3 bucket, build role | Plus the operator role as the connector's `operatorRoleArn`, subnets, security groups | Plus a second availability zone's subnet |
 | Quota discovery | Off | On | On |
 
-Constant across every tier: the five CRDs, the operator install, the namespace label the webhook enforces, the cross-plane edges the lint pack checks, and the naming scheme.
+Two things that table corrects, because both are easy to assume the other way round:
 
-The memory sizes named here are the service's five runtime profiles (512, 1024, 2048, 4096, 8192). They are unrelated to deployment tiers and the collision is unfortunate. Where the docs say "tier" without qualification they mean the deployment tier in this table.
+**Memory is a property of the image, not of the class.** `MicroVMImage.spec.memorySizeMiB` is where a VM's memory comes from. `MicroVMClass` carries the idle and lifetime policy — `maxIdleDurationSeconds`, `suspendedDurationSeconds`, `autoResumeEnabled`, `maximumDurationSeconds` and the connector lists — and has no memory field at all.
+
+**The image name carries the tier.** `MicroVMImage.spec.memorySizeMiB` is immutable after creation and the webhook rejects a change, so an image named without the tier would make `minimal` to `prod` an apply that cannot succeed. Named with it, the two tiers own two images.
+
+**A replica set's `template` is the MicroVM spec inline.** There is no metadata wrapper the way there is in a Kubernetes `ReplicaSet`, so the same object serves both shapes and the kit builds it once.
+
+The memory sizes named here are the service's five runtime profiles (512, 1024, 2048, 4096, 8192). They are unrelated to deployment tiers and the collision in the word is unfortunate. Where the docs say "tier" without qualification they mean the deployment tier in this table.
+
+Constant across every tier: the five CRDs, the operator install, the namespace label the webhook enforces, the cross-plane edges the lint pack checks, and the naming scheme.
 
 ## Targets
 
@@ -89,12 +103,16 @@ The decision is to split it rather than answer it once.
 
 ## What has been validated
 
-The kit is at M0 and nothing below is built yet. The table exists so it can be filled in honestly rather than written after the fact.
+Filled in as each cell is actually run, rather than written from what the code implies.
 
 | Tier | Local | Real |
 |------|-------|------|
-| `minimal` | Not built | Not built |
-| `prod` | Not built | Not built |
-| `prod-ha` | Not built | Not built |
+| `minimal` | **Deployed end to end 2026-08-02.** Image built to `SUCCESSFUL` on m80, MicroVM reached `Running`, operator confirmed connectivity | Not run |
+| `prod` | Builds and lints clean; every emitted field checked against the pinned CRD schemas. Not applied on its own — `prod-ha` covers the same resource set | Not run |
+| `prod-ha` | **Deployed end to end 2026-08-02.** `MicroVMReplicaSet` 2/2 ready, both VMs `Running`, `MicroVMNetwork` connector `ACTIVE`, `MicroVMClass` applied. Deployed over a live `minimal` estate, so the tier change is exercised too | Not run |
 
-What has been proven so far is the substrate the local target sits on, not the kit: m80 answers 29 of 29 MicroVMs operations against fixtures recorded from live AWS, and 50 of 63 cases of KubeMicroVM's own UAT suite pass against it with every failure accounted for. Three of those failures were issues in the operator rather than the emulator, and all three are filed upstream.
+Everything not marked deployed is the narrower claim `test/tier-matrix.test.ts` supports: it builds all three tiers, checks that each declares the resources this page says it does, that every spec field it emits exists in the shipped CRD schema, that the workload namespace carries the label the webhook requires, and that every `imageRef`, `className` and `networkRef` resolves to something declared alongside it. It does not apply anything to a cluster.
+
+The two deployed runs found four things a schema check could not, all in [Running the local target]({{< relref "local-target" >}}). Each was accepted at apply time and failed later.
+
+What is proven beneath the kit, rather than by it: m80 answers 29 of 29 MicroVMs operations against fixtures recorded from live AWS, and 50 of 63 cases of KubeMicroVM's own UAT suite pass against it with every failure accounted for. Three of those failures were issues in the operator rather than the emulator, and all three are filed upstream.

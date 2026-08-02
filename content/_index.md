@@ -11,7 +11,7 @@ KubeMicroVM brings AWS Lambda MicroVMs into the Kubernetes resource model. It sh
 
 This kit closes that gap. It gives KubeMicroVM consumers typed declarations for the whole estate, semantic lint that catches admission-time failures at build time, and a durable install workflow.
 
-This repo is in the design phase. The pages under [Design]({{< relref "/docs" >}}) are the working documents.
+The kit is built and runs. [Quick start]({{< relref "/docs/quickstart" >}}) takes a laptop from nothing to a running MicroVM in one command, with no AWS account and nothing to pay for.
 
 ## The shape of the kit
 
