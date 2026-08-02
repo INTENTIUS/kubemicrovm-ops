@@ -1,0 +1,78 @@
+name: local-e2e
+
+# The claim on the tiers page is that the local recipes run per commit and cost
+# nothing. This is what makes that true: k3d + floci + m80, the real operator,
+# and the estate applied at two tiers, on a hosted runner with no AWS account.
+#
+# Two tiers rather than three: `minimal` and `prod-ha` between them cover every
+# resource kind the kit declares, and applying `prod-ha` over a live `minimal`
+# estate exercises a tier change — which is where the immutable-memory
+# rejection was found. `prod` declares nothing `prod-ha` does not.
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: local-e2e-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  AWS_ENDPOINT_URL: http://localhost:4566
+  AWS_ACCESS_KEY_ID: test
+  AWS_SECRET_ACCESS_KEY: test
+  AWS_REGION: us-east-1
+  M80_IMAGE: m80:ci
+
+jobs:
+  local-e2e:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: install k3d
+        run: curl -sfL https://raw.githubusercontent.com/k3d-io/k3d/main/install.sh | bash
+
+      - run: npm install
+
+      # The published m80 image predates -serve-sts, so a pull produces an
+      # emulator the operator's startup gate cannot pass. Build main instead —
+      # see INTENTIUS/m80#54, which tracks that mismatch.
+      - name: build m80 from main
+        run: |
+          git clone --depth 1 https://github.com/INTENTIUS/m80 /tmp/m80
+          docker build -t "${M80_IMAGE}" /tmp/m80
+
+      - name: bring the local target up at minimal
+        run: bash scripts/local/local-up.sh minimal
+
+      - name: the minimal estate converges
+        run: bash scripts/local/assert-converged.sh minimal
+
+      - name: change tier to prod-ha over the live estate
+        run: |
+          kubectl -n microvm-demo delete microvm --all --timeout=120s
+          bash scripts/local/apply-estate.sh prod-ha
+
+      - name: the prod-ha estate converges
+        run: bash scripts/local/assert-converged.sh prod-ha
+
+      - name: what the operator saw
+        if: always()
+        run: |
+          kubectl -n kube-microvm logs deploy/kube-microvm-operator --tail=200 || true
+          kubectl -n microvm-demo get microvmimages,microvms,microvmreplicasets,microvmclasses,microvmnetworks -o wide || true
+
+      - name: down
+        if: always()
+        run: bash scripts/local/local-down.sh

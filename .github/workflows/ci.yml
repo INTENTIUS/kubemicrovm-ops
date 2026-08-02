@@ -1,0 +1,49 @@
+name: ci
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  # Typecheck, chant lint, and the tier matrix — which builds all three tiers
+  # and checks every emitted field against the CRD schemas in crds/. chant and
+  # the lexicons are published npm deps, so nothing else has to be checked out.
+  check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: npm install
+      - name: typecheck
+        run: npm run tsc
+      - name: lint
+        run: npm run lint
+      - name: test
+        run: npm test
+
+  # The CRDs in crds/ are copied from the pinned chart. If the chart moves and
+  # they do not, the schema check in the tier matrix is checking the kit
+  # against a version nobody deploys.
+  crds-match-the-pinned-chart:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - name: pull the chart and diff its CRDs
+        run: |
+          version="$(grep -o 'CHART_VERSION:-[0-9.]*' scripts/local/local-up.sh | head -1 | cut -d- -f2)"
+          echo "pinned chart version: ${version}"
+          helm pull oci://ghcr.io/codriverlabs/helm/kube-microvm-operator \
+            --version "${version}" --untar --untardir /tmp/chart
+          diff -r /tmp/chart/kube-microvm-operator/crds crds --exclude=README.md
