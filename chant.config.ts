@@ -89,6 +89,19 @@ export default {
       required: false,
     },
 
+    // ── The operator-less path (src/golden-image) ───────────────────────
+    // `MicrovmApp` builds an image through CloudFormation with no cluster
+    // involved. Off by default: a deployment that declares its own
+    // MicroVMImage needs none of it, and turning it on for symmetry would
+    // build a second image nobody references.
+    goldenImageMode: {
+      type: "string",
+      enum: ["provision", "omit"],
+      default: "omit",
+    },
+    goldenBaseImage: { type: "string", default: "al2023-1", env: "KMV_GOLDEN_BASE_IMAGE" },
+    goldenBaseImageVersion: { type: "string", default: "0", env: "KMV_GOLDEN_BASE_IMAGE_VERSION" },
+
     // ── Workload inputs ─────────────────────────────────────────────────
     workloadNamespace: { type: "string", default: "microvm-demo", env: "KMV_NAMESPACE" },
     // Pinned by the chart, not chosen by us: every template in

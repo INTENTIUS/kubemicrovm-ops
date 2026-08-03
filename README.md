@@ -45,6 +45,7 @@ An **adoption seam** is whether the kit provisions a prerequisite, references on
 | `src/lib/target.ts` | Local or real, chosen by whether `AWS_ENDPOINT_URL` is set |
 | `src/lib/naming.ts` | One naming and tagging key across both planes |
 | `src/aws-plane/` | S3 bucket, build role, operator role, pod identity association |
+| `src/golden-image/` | The operator-less `MicrovmApp` path, behind a seam that is off by default |
 | `src/workload/` | Namespaces and the five custom resources |
 | `crds/` | KubeMicroVM's CRDs, pinned to chart 1.0.11 |
 | `test/tier-matrix.test.ts` | Builds every tier and checks each field against those CRDs |
@@ -76,6 +77,8 @@ just synth          # both planes for the current tier and target
 ### Typed CRDs
 
 The typed classes for the five CRDs come from `@intentius/chant-lexicon-k8s`, which generates them from the same pinned Helm chart `crds/` is copied from. Needs 0.36.0 or later: before that, generated CRD classes carried no `metadata` property, so setting a name or a namespace meant an `as any` at every call site ([chant#1309](https://github.com/INTENTIUS/chant/issues/1309)).
+
+The aws lexicon needs 0.37.1 or later for the same class of reason — `MicrovmApp` was missing from its package root ([chant#1219](https://github.com/INTENTIUS/chant/issues/1219)).
 
 ## Related
 
