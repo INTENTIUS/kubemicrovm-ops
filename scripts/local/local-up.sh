@@ -198,7 +198,14 @@ else
 fi
 echo
 echo "  kubectl -n ${KMV_NAMESPACE} get microvms,microvmimages,microvmreplicasets"
-echo "  cd ../behold && npm run dev -- preview ../kubemicrovm-ops          # the estate across both substrates"
+echo "  just validate      # whether the estate converged, not just applied"
+echo "  just doctor        # what state each piece is in"
+# Only suggested when it would work. Printing a command that fails for most
+# readers costs more than printing nothing, and this one fails for anyone who
+# followed the quick start, which never clones behold.
+if [ -d "${BEHOLD_DIR:-../behold}" ]; then
+    echo "  just view          # the estate across both substrates"
+fi
 echo
 echo "  Local validates that the estate declares and reconciles. It does not"
 echo "  validate that AWS will accept the roles at runtime: nothing fetches"

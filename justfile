@@ -122,8 +122,27 @@ prod-ha-live-e2e:
 # ── Viewing ──────────────────────────────────────────────────────────────
 
 # Note: serves at http://localhost:4600, with the tier picker switching
-# between the three profiles. Needs a behold checkout beside this one.
+# between the three profiles. Needs a behold checkout, `../behold` by default
+# and BEHOLD_DIR otherwise — the quick start does not create one, so a reader
+# who followed it reaches this recipe without the thing it needs.
 
 # Open the estate in behold — both substrates in one graph.
 view:
-    cd ../behold && npm run dev -- preview ../kubemicrovm-ops
+    #!/usr/bin/env bash
+    set -euo pipefail
+    kit="$(pwd)"
+    behold="${BEHOLD_DIR:-../behold}"
+    if [ ! -d "${behold}" ]; then
+        echo "no behold checkout at ${behold}" >&2
+        echo "" >&2
+        echo "behold is the live control plane this opens the estate in. It is a" >&2
+        echo "separate repository and the quick start does not clone it:" >&2
+        echo "" >&2
+        echo "  git clone https://github.com/INTENTIUS/behold ${behold}" >&2
+        echo "  just view" >&2
+        echo "" >&2
+        echo "Or point BEHOLD_DIR at a checkout you already have." >&2
+        echo "The estate is fine without it — this is a way to look, not a step." >&2
+        exit 1
+    fi
+    cd "${behold}" && npm run dev -- preview "${kit}"
