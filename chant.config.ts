@@ -104,6 +104,29 @@ export default {
   lint: {
     overrides: [
       {
+        // The fixtures under test/fixtures/broken/ are deliberately wrong —
+        // that is their whole job — and the tier matrix asserts they fail the
+        // KMV rules. They are not project source and chant's own rules have
+        // nothing useful to say about them.
+        // The KMV rules are off here for the same reason: `just lint` should
+        // be clean on a correct checkout, and these files are wrong on
+        // purpose. `test/lint-pack.test.ts` runs the rule objects against them
+        // directly and asserts each fails its own rule and no other, which is
+        // the assertion that matters — turning them off here does not weaken it.
+        files: ["test/fixtures/**"],
+        rules: {
+          EVL001: "off", EVL002: "off", EVL003: "off", EVL004: "off",
+          COR001: "off", COR004: "off",
+          KMV003: "off", KMV009: "off", KMV010: "off",
+        },
+      },
+      {
+        // .chant/rules/** is plain TypeScript AST code, not composite
+        // authoring, so the static-evaluability rules do not apply.
+        files: [".chant/rules/**"],
+        rules: { EVL002: "off", EVL003: "off", EVL004: "off" },
+      },
+      {
         // src/lib/** is plain runtime helper code — the naming helper, the tier
         // profile, the target resolver. None of it is a composite property
         // expression, so the static-evaluability rules do not apply.
