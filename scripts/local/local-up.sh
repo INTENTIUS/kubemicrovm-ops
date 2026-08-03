@@ -38,7 +38,10 @@ KMV_NAMESPACE="${KMV_NAMESPACE:-microvm-demo}"
 # security group rules and tags are dropped there, and that fork fixes them.
 FLOCI_IMAGE="${FLOCI_IMAGE:-floci/floci:latest}"
 FLOCI_PORT="${FLOCI_PORT:-4566}"
-M80_IMAGE="${M80_IMAGE:-ghcr.io/intentius/m80:v0.2.0}"
+# Pinned rather than :latest, and v0.3.0 or newer is required: the args below
+# pass -serve-sts, which v0.2.0's binary rejects outright, so an older tag does
+# not degrade — it crashloops (m80#65).
+M80_IMAGE="${M80_IMAGE:-ghcr.io/intentius/m80:v0.3.0}"
 M80_PORT="${M80_PORT:-4290}"
 CHART_VERSION="${CHART_VERSION:-1.0.11}"
 AWS_REGION="${AWS_REGION:-us-east-1}"
@@ -108,7 +111,19 @@ spec:
   selector: { app: m80 }
   ports: [{ port: ${M80_PORT}, targetPort: ${M80_PORT} }]
 YAML
-kubectl -n "${NS}" rollout status deploy/m80 --timeout=300s
+# On failure this is a five minute wait followed by one line about a deadline,
+# which says nothing about the emulator having exited on an argument it did not
+# recognise. m80's own logs say exactly that, so print them.
+if ! kubectl -n "${NS}" rollout status deploy/m80 --timeout=300s; then
+    echo "" >&2
+    echo "m80 did not become ready. Its last output:" >&2
+    kubectl -n "${NS}" logs deploy/m80 --tail=20 --all-containers --ignore-errors >&2 || true
+    kubectl -n "${NS}" get pods -l app=m80 -o wide >&2 || true
+    echo "" >&2
+    echo "M80_IMAGE is ${M80_IMAGE}. The harness passes -serve-sts, which needs" >&2
+    echo "v0.3.0 or newer; older tags exit rather than ignore it." >&2
+    exit 1
+fi
 
 # From here the install Op owns the ordering — AWS plane, operator, estate,
 # converge. This script's job was the substrate underneath it: floci, k3d and
