@@ -85,14 +85,10 @@ export KMV_TIER="${TIER}"
 # documented prerequisites and the install Op is `npx chant run`, so a machine
 # with docker and k3d and nothing else got past every stated requirement and
 # failed in phase one.
-missing=""
-for cmd in docker k3d kubectl helm aws node npm; do
-    command -v "${cmd}" >/dev/null 2>&1 || missing="${missing} ${cmd}"
-done
-if [ -n "${missing}" ]; then
-    echo "missing:${missing}" >&2
+if ! bash "$(dirname "$0")/prereqs.sh" --check; then
     echo "" >&2
-    echo "The local target needs docker, k3d, kubectl, helm, the AWS CLI, node and npm." >&2
+    echo "  ./go              # offers to install these, asking first" >&2
+    echo "  just prereqs      # the same check on its own" >&2
     exit 1
 fi
 # Installed and not running is the common case on macOS, and it is a different

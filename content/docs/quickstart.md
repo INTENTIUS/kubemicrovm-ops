@@ -5,16 +5,17 @@ weight: 5
 
 # Quick start
 
-From nothing to a running MicroVM on a laptop, with no AWS account and nothing to pay for. Needs Docker, k3d, kubectl, helm, the AWS CLI, node, npm and `just`.
-
-Everything except `just` is checked before anything starts, and all of it at once — so a machine that is missing three of them says so in one go rather than three runs apart.
+From nothing to a running MicroVM on a laptop, with no AWS account and nothing to pay for.
 
 ```sh
 git clone https://github.com/INTENTIUS/kubemicrovm-ops
 cd kubemicrovm-ops
-npm install
-just minimal-local-e2e
+./go
 ```
+
+**If you have Docker, that is everything.** `./go` checks the seven other tools this needs — k3d, kubectl, helm, the AWS CLI, node, npm and `just` — and offers to install whichever are missing, asking before it touches anything. It will not install Docker: that needs a daemon, and on Linux a group membership that does not take effect until you log out, so a script claiming to have installed it would hand you something that does not work.
+
+Everything `./go` does is a documented command in the order you would run it — `just prereqs`, `npm install`, `just minimal-local-e2e`. If you would rather run them yourself, run them yourself.
 
 That is one command doing several things, in this order.
 
