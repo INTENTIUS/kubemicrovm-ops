@@ -30,12 +30,23 @@ PF_PORT="${PF_PORT:-14291}"
 TIMEOUT="${TIMEOUT:-300}"
 ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
 MANIFEST="${ROOT}/dist/workload-${TIER}.yaml"
+. "$(dirname "$0")/lib-estate.sh"
 
 fail() {
     echo "" >&2
     echo "failure-path check failed at tier ${TIER}: $1" >&2
     echo "" >&2
     kubectl -n "${NS}" get microvmimages,microvms,microvmnetworks -o wide >&2 || true
+    # -o wide shows NAME and AGE and nothing else, since none of these CRDs
+    # declares printer columns. The status blocks are the whole point of
+    # looking, so print them rather than a table that cannot carry them.
+    echo "" >&2
+    echo "status blocks:" >&2
+    for kind in microvmimage microvmnetwork microvmreplicaset; do
+        kubectl -n "${NS}" get "${kind}" \
+            -o "jsonpath={range .items[*]}${kind}/{.metadata.name}: {.status}{\"\n\"}{end}" 2>/dev/null >&2 || true
+    done
+    echo "" >&2
     kubectl -n "${OPERATOR_NS}" logs deploy/kube-microvm-operator --tail=60 >&2 || true
     exit 1
 }
@@ -105,8 +116,19 @@ echo "==> failure paths at tier ${TIER}"
 # has to be removed and recreated for it to bite. The name comes off the live
 # CR rather than being rederived, since naming.ts is the only thing that knows
 # how it is built.
-image="$(kubectl -n "${NS}" get microvmimage -o jsonpath='{.items[0].metadata.name}' 2>/dev/null)"
-[ -n "${image}" ] || fail "no MicroVMImage in ${NS} — stand the tier up first"
+# Which image, and not `.items[0]`. A tier change leaves the previous tier's
+# image in place — kubectl apply does not prune — so after minimal -> prod-ha
+# there are two, and the first one is the wrong one. Arming the wrong lever
+# then watching the right image build successfully is a five minute wait ending
+# in a message that names neither. Ask what this tier's VMs actually reference.
+image="$(estate_image_name "${NS}")"
+[ -n "${image}" ] || fail "nothing in ${NS} references an image — stand the tier up first"
+
+# The lever keys by the name m80 knows, which is the CR name the operator
+# passed to CreateMicrovmImage. imageRef is that name.
+kubectl -n "${NS}" get microvmimage "${image}" >/dev/null 2>&1 ||
+    fail "the VMs reference image ${image}, which does not exist in ${NS}"
+echo "    this tier's VMs reference ${image}"
 
 echo "  a build that fails"
 # The replica set goes first. m80 refuses to delete an image a live VM still
@@ -131,11 +153,13 @@ kubectl apply -f "${MANIFEST}" >/dev/null
 
 # FAILED rather than a timeout is the whole assertion: the operator has to
 # surface the service's answer, not sit on it.
+# Named, not {.items[*]}: with two images present a wildcard would report
+# "SUCCESSFUL FAILED" and match on the other tier's image.
 wait_for "the image build" \
-    "microvmimage -o jsonpath={.items[*].status.latestVersionState}" \
+    "microvmimage ${image} -o jsonpath={.status.latestVersionState}" \
     "FAILED"
 
-reason="$(kubectl -n "${NS}" get microvmimage -o jsonpath='{.items[0].status.latestVersionStateReason}' 2>/dev/null)"
+reason="$(kubectl -n "${NS}" get microvmimage "${image}" -o jsonpath='{.status.latestVersionStateReason}' 2>/dev/null)"
 if [ -n "${reason}" ]; then
     echo "    reason surfaced: ${reason}"
 else
@@ -152,12 +176,36 @@ else
     [ -n "${network}" ] || fail "no MicroVMNetwork in ${NS} at tier ${TIER}"
 
     code="${REASON_CODE:-SubnetOutOfIPAddresses}"
-    kubectl -n "${NS}" delete microvmnetwork "${network}" --timeout=120s >/dev/null 2>&1 || true
+
+    # The VMs go first, and this is not the same clearing the build stage did:
+    # re-applying the manifest there brought the replica set and its VMs back,
+    # and a MicroVM referencing this connector holds its deletion open. The
+    # first version of this deleted the network with VMs live, swallowed the
+    # error, and then waited five minutes for a state change on a CR that had
+    # never been recreated — nine minutes old at the point it gave up.
+    kubectl -n "${NS}" delete microvmreplicaset --all --timeout=120s >/dev/null 2>&1 || true
+    kubectl -n "${NS}" delete microvm --all --timeout=120s >/dev/null 2>&1 || true
+
+    if ! kubectl -n "${NS}" delete microvmnetwork "${network}" --timeout=180s >/dev/null 2>&1; then
+        fail "MicroVMNetwork ${network} would not delete, so the connector lever cannot arm.
+    A MicroVM still referencing it is the usual cause, and a finalizer that
+    outlives the reference is the other."
+    fi
+    for _ in $(seq 1 24); do
+        kubectl -n "${NS}" get microvmnetwork "${network}" >/dev/null 2>&1 || break
+        sleep 5
+    done
+    if kubectl -n "${NS}" get microvmnetwork "${network}" >/dev/null 2>&1; then
+        fail "MicroVMNetwork ${network} is still present after a successful delete call"
+    fi
+
     arm "{\"target\":\"connector\",\"name\":\"${network}\",\"reasonCode\":\"${code}\"}"
     kubectl apply -f "${MANIFEST}" >/dev/null
 
+    # Named for the same reason the image is, even though minimal declares no
+    # network so there is only ever one today.
     wait_for "the connector" \
-        "microvmnetwork -o jsonpath={.items[*].status.stateReasonCode}" \
+        "microvmnetwork ${network} -o jsonpath={.status.stateReasonCode}" \
         "${code}"
 fi
 

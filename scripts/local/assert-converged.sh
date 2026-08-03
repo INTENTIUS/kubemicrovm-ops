@@ -61,3 +61,11 @@ else
 fi
 
 echo "    the ${TIER} estate converged"
+
+# Converged is not the same as deployable. The local target raises m80's
+# account memory ceiling far above what a real account has, so an estate that
+# converges here can still be refused on AWS for quota — and that refusal costs
+# a support request and a wait, which is exactly the class of surprise this kit
+# exists to move to a laptop. Warns, never fails: an account already raised is
+# an ordinary thing to be deploying into and nothing here can tell.
+bash "$(dirname "$0")/account-fit.sh" || true

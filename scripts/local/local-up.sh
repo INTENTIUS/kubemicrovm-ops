@@ -39,10 +39,11 @@ KMV_NAMESPACE="${KMV_NAMESPACE:-microvm-demo}"
 # security group rules and tags are dropped there, and that fork fixes them.
 FLOCI_IMAGE="${FLOCI_IMAGE:-floci/floci:latest}"
 FLOCI_PORT="${FLOCI_PORT:-4566}"
-# Pinned rather than :latest, and v0.3.0 or newer is required: the args below
-# pass -serve-sts, which v0.2.0's binary rejects outright, so an older tag does
-# not degrade — it crashloops (m80#65).
-M80_IMAGE="${M80_IMAGE:-ghcr.io/intentius/m80:v0.3.0}"
+# Pinned rather than :latest, and v0.4.0 or newer is required: the args below
+# pass -serve-sts and -enable-injection, and an m80 that does not know a flag
+# exits rather than ignoring it — so an older tag does not degrade, it
+# crashloops (m80#65 for the first flag, m80#74 for the second).
+M80_IMAGE="${M80_IMAGE:-ghcr.io/intentius/m80:v0.4.0}"
 M80_PORT="${M80_PORT:-4290}"
 CHART_VERSION="${CHART_VERSION:-1.0.11}"
 AWS_REGION="${AWS_REGION:-us-east-1}"
@@ -53,21 +54,16 @@ MAX_ACCOUNT_MEMORY_MIB="${MAX_ACCOUNT_MEMORY_MIB:-262144}"
 # m80's failure-injection levers, which is how a failed image build or a
 # connector failure code can be caused on purpose (`just break-it`).
 #
-# Off by default, and not because the levers are risky here — a throwaway k3d
-# cluster is exactly where that trade is worth making. Off because
-# -enable-injection does not exist in any published m80 image: it landed on
-# m80 main in m80#66, seven hours after v0.3.0 was tagged. An unknown flag is
-# not ignored, so turning this on against the default image does not lose the
-# levers, it crashloops the emulator and takes the whole stand-up with it.
+# On, because a throwaway k3d cluster is exactly where that trade is worth
+# making: nothing under /_m80/ is signed, which is why m80 leaves the flag off
+# by default and is right to, and which matters not at all on a laptop cluster
+# whose whole purpose is provoking failures.
 #
-# Turn it on with an image that has the flag, which today means a build of
-# m80 main:
+# It was off until v0.4.0, because the flag existed on m80 main and in no
+# published image (m80#74). Requires that release or newer.
 #
-#   docker build -t m80:main ~/checkouts/m80
-#   M80_IMAGE=m80:main M80_ENABLE_INJECTION=1 just prod-ha-local-e2e
-#
-# The default flips back to 1 when a release carries it (m80#74).
-M80_ENABLE_INJECTION="${M80_ENABLE_INJECTION:-0}"
+# M80_ENABLE_INJECTION=0 declines it, and `just break-it` then says so.
+M80_ENABLE_INJECTION="${M80_ENABLE_INJECTION:-1}"
 if [ "${M80_ENABLE_INJECTION}" = "1" ]; then
     INJECT_ARG=', "-enable-injection"'
 else

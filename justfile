@@ -91,6 +91,24 @@ validate tier="":
 break-it tier="":
     bash scripts/local/assert-failure-paths.sh {{tier}}
 
+# Note: warns and never fails. It reads the deployed image's memory size and
+# the live replica floor, not what tiers.ts declares, because those are the
+# numbers the service is actually asked for. ACCOUNT_CEILING_MIB says what your
+# account was raised to.
+
+# Would this estate fit an AWS account's memory quota.
+account-fit:
+    bash scripts/local/account-fit.sh
+
+# Note: rebuilds the estate against m80's recorded 4096 MiB ceiling instead of
+# the 262144 the harness normally raises it to. prod-ha needs 8192, so it
+# cannot fit — the assertion is that the refusal names a quota rather than
+# looking like a hang.
+
+# Stand a tier up against a real account's ceiling and watch it be refused.
+quota-refusal tier="prod-ha":
+    bash scripts/local/assert-quota-refusal.sh {{tier}}
+
 # Tear the local target down: the teardown Op, then the cluster and floci.
 local-down:
     bash scripts/local/local-down.sh

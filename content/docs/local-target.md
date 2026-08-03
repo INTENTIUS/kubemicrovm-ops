@@ -95,8 +95,37 @@ That is also why `local-e2e` does not run this step yet. Building m80 from sourc
 
 The seven reason codes are the service model's own: `SubnetOutOfIPAddresses` is the default here, and `REASON_CODE` picks another.
 
-## Quotas
+## Quotas, and the cost they are
 
-m80 defaults to the account memory ceiling a fresh AWS account has, 4096 MiB. At `prod-ha`'s 4096 MiB per VM that is one VM and nothing left over, so the script raises it the way a real account used for this would have been. Override with `MAX_ACCOUNT_MEMORY_MIB`.
+The MicroVMs service caps how much memory an account may have allocated across running VMs at once. A fresh account is capped at **4096 MiB** — recorded from a real one by m80, not inferred — and at the 2048 MiB default profile that is two concurrent MicroVMs.
 
-Leaving it at the default is a reasonable thing to do deliberately: it is how you find out what your estate does when the account quota is the binding constraint, which is a failure mode worth seeing before a customer does.
+**`prod-ha` does not fit a fresh account.** It declares two VMs at 4096 MiB each, so it needs 8192 MiB and gets refused at the second VM with `402 ServiceQuotaExceededException`. `prod` needs 4096 and fits with nothing to spare.
+
+That is the single most expensive thing this kit can catch. A quota increase is a support request, not a setting, and finding out you need one after building everything else is the worst order to find out in. Here it costs five minutes.
+
+`local-up.sh` raises m80's ceiling to 262144 MiB the way a real account used for this would have been raised, so ordinary runs have room. `MAX_ACCOUNT_MEMORY_MIB` overrides it.
+
+### Would my estate fit
+
+```sh
+just account-fit
+```
+
+Reads the deployed image's memory size and the live replica floor — the numbers the service is actually asked for, rather than what `tiers.ts` declares — and warns if they exceed a default account's ceiling. `just validate` runs it at the end for the same reason.
+
+It warns and never fails. An account already raised is an ordinary thing to be deploying into, and nothing here can tell that apart from an account that has not been. `ACCOUNT_CEILING_MIB` says what yours was raised to and the warning goes quiet.
+
+### What the refusal actually looks like
+
+```sh
+just quota-refusal prod-ha
+```
+
+Restarts m80 at the recorded 4096 MiB, rebuilds the estate against it, and checks that something names the quota rather than the estate simply never converging. m80 logs the ceiling by name and says which knob raises it:
+
+```
+WARN run rejected: account memory ceiling reached allocatedMiB=4096 requestedMiB=4096
+     ceilingMiB=4096 hint="raise -max-account-memory-mib, or 0 to uncap"
+```
+
+A silent stall here would be the finding, not a broken check — an estate that cannot fit its account and does not say so is exactly the shape that costs money.
