@@ -37,10 +37,15 @@ jobs:
       # `just minimal-local-e2e` the README opens with. Nothing caught that,
       # because every workflow calls the scripts directly and none of them
       # goes through just. Listing parses the file, which is the check.
-      - name: the justfile parses
+      #
+      # The second script is the other half: a doc can name a recipe that does
+      # not exist, and a reader running a documented command that fails reads
+      # it as the repo being broken rather than the docs being stale.
+      - name: the justfile parses, and the docs only name recipes that exist
         run: |
           curl -sfL https://just.systems/install.sh | bash -s -- --to /usr/local/bin
           just --list
+          bash scripts/docs-commands-exist.sh
 
   # A broken `relref` is a build failure rather than a bad link, so building
   # the site gates a class of mistake nothing else here catches. The deploy
