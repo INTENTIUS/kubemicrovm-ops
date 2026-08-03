@@ -115,6 +115,13 @@ export default {
     baseImageArn: { type: "string", required: false, env: "KMV_BASE_IMAGE_ARN" },
   },
   lint: {
+    // Estate-level checks: the ones about a relationship between two
+    // declarations rather than about a file. A `LintRule` under
+    // `.chant/rules/` sees one source file at a time and cannot answer
+    // "is the namespace this resource names one we declare, and is it
+    // labelled" — that is two files. A `PostSynthCheck` sees every
+    // serialized output at once, which is the layer the question lives at.
+    policies: [".chant/policies/kmv-estate.ts"],
     overrides: [
       {
         // The fixtures under test/fixtures/broken/ are deliberately wrong —
