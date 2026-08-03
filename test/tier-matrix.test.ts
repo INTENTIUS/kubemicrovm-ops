@@ -71,7 +71,7 @@ const built: Partial<Record<Tier, Manifest[]>> = {};
 
 beforeAll(() => {
   for (const tier of TIERS) built[tier] = build(tier);
-}, 180_000);
+});
 
 function kinds(tier: Tier): string[] {
   return (built[tier] ?? []).map((m) => m.kind);
