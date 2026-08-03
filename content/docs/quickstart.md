@@ -68,11 +68,25 @@ Both run against an estate that is already up, so neither stands anything up or 
 
 ## Change tier
 
+Against the stack you already have, without rebuilding it:
+
+```sh
+kubectl -n microvm-demo delete microvm --all
+just apply-tier prod-ha
+just validate prod-ha
+```
+
+The delete is a separate step on purpose. `kubectl apply` adds and updates but never removes, so the `minimal` tier's VM outlives the change unless you say otherwise — and a command named `apply-tier` that silently deleted every MicroVM would be worth complaining about.
+
+From nothing, if you have no stack up or want a clean one:
+
 ```sh
 just prod-ha-local-e2e
 ```
 
-Same source, same command shape. `prod-ha` declares a `MicroVMClass` carrying the idle policy, a `MicroVMNetwork` across two subnets, and a `MicroVMReplicaSet` with a floor of two instead of the single `MicroVM`:
+That deletes the k3d cluster and builds everything again, taking about as long as the first run did. It is the right command for a fresh start and the wrong one for a tier change.
+
+Same source either way. `prod-ha` declares a `MicroVMClass` carrying the idle policy, a `MicroVMNetwork` across two subnets, and a `MicroVMReplicaSet` with a floor of two instead of the single `MicroVM`:
 
 ```
 NAME                                     STATE

@@ -57,6 +57,16 @@ prod-local-e2e:
 prod-ha-local-e2e:
     bash scripts/local/local-up.sh prod-ha
 
+# Note: a tier change against the cluster and floci already up, which is what
+# apply-estate.sh was split out of local-up.sh to make possible. The e2e
+# recipes above rebuild the cluster from nothing; this one does not. Applying
+# prod-ha over a live minimal estate is also what exercises the webhook's
+# immutable-field rejection.
+
+# Rebuild and apply the estate at one tier, against a stack already up.
+apply-tier tier:
+    bash scripts/local/apply-estate.sh {{tier}}
+
 # Note: answers "why is nothing happening" without standing anything up. It
 # walks the pieces in the order they depend on each other and names the command
 # to run about whichever one is wrong.

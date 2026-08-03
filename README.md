@@ -17,7 +17,7 @@ That brings up a k3d cluster, [floci](https://github.com/lex00/floci) for the AW
 
 ```bash
 kubectl -n microvm-demo get microvmimages,microvms
-just validate                 # did the estate converge, not just apply
+just validate                 # did the estate converge, or merely apply
 just view                     # the whole estate in behold, both substrates
 just local-down
 ```

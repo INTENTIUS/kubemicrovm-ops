@@ -4,6 +4,17 @@ name: local-e2e
 # nothing. This is what makes that true: k3d + floci + m80, the real operator,
 # and the estate applied at two tiers, on a hosted runner with no AWS account.
 #
+# Every step runs the command the docs give a reader, through `just`, in the
+# order the quick start gives them. It used to call the scripts directly —
+# `bash scripts/local/local-up.sh minimal` — which is the same work by a route
+# no reader takes, and that is exactly how two first-run bugs survived a green
+# pipeline: a duplicate recipe that stopped `just` parsing the justfile at all
+# (#31), and an m80 image predating a flag the harness passes (#23). Neither
+# was reachable from here, because nothing here went through the front door.
+#
+# So: if a step in this job is not a command the docs tell someone to run, it
+# is testing something nobody does.
+#
 # Two tiers rather than three: `minimal` and `prod-ha` between them cover every
 # resource kind the kit declares, and applying `prod-ha` over a live `minimal`
 # estate exercises a tier change — which is where the immutable-memory
@@ -43,33 +54,42 @@ jobs:
         with:
           node-version: '22'
 
-      - name: install k3d
-        run: curl -sfL https://raw.githubusercontent.com/k3d-io/k3d/main/install.sh | bash
+      # A reader installs k3d and just; docker, kubectl, helm and the AWS CLI
+      # are already on the runner, and local-up.sh's preflight checks all of
+      # them the way it would on a laptop that is missing one.
+      - name: install k3d and just
+        run: |
+          curl -sfL https://raw.githubusercontent.com/k3d-io/k3d/main/install.sh | bash
+          curl -sfL https://just.systems/install.sh | bash -s -- --to /usr/local/bin
 
+      # The quick start says `npm install`, so that is what runs here.
       - run: npm install
 
-      # Brings up floci, k3d and m80, then hands the ordering to the install
-      # Op — so what CI proves and what an adopter runs are the same phases.
-      - name: bring the local target up at minimal
-        run: bash scripts/local/local-up.sh minimal
+      - name: just minimal-local-e2e
+        run: just minimal-local-e2e
 
-      - name: the minimal estate converges
-        run: bash scripts/local/assert-converged.sh minimal
+      - name: just validate
+        run: just validate minimal
 
       # Doctor is a diagnostic a reader runs when something is wrong, so the
       # risk is that it rots unnoticed — it is never exercised by a green run
       # unless a green run exercises it. Against a healthy stack every check
       # passes, which is the assertion.
-      - name: doctor agrees the stack is healthy
-        run: bash scripts/local/doctor.sh
+      - name: just doctor
+        run: just doctor
 
-      - name: change tier to prod-ha over the live estate
+      # A tier change in place, which is the operation apply-estate.sh exists
+      # for. The delete is not folded into the recipe: kubectl apply does not
+      # prune, so the previous tier's VMs outlive the change, and a recipe that
+      # quietly deleted every MicroVM would be a surprising thing to name
+      # `apply-tier`. The quick start shows these same two commands.
+      - name: just apply-tier prod-ha, over the live minimal estate
         run: |
           kubectl -n microvm-demo delete microvm --all --timeout=120s
-          bash scripts/local/apply-estate.sh prod-ha
+          just apply-tier prod-ha
 
-      - name: the prod-ha estate converges
-        run: bash scripts/local/assert-converged.sh prod-ha
+      - name: just validate prod-ha
+        run: just validate prod-ha
 
       - name: what the operator saw
         if: always()
@@ -77,6 +97,12 @@ jobs:
           kubectl -n kube-microvm logs deploy/kube-microvm-operator --tail=200 || true
           kubectl -n microvm-demo get microvmimages,microvms,microvmreplicasets,microvmclasses,microvmnetworks -o wide || true
 
-      - name: down
+      # Doctor again on the way out, because a stack that has been through a
+      # tier change is a different stack from the one it agreed about earlier.
+      - name: just doctor, after the tier change
         if: always()
-        run: bash scripts/local/local-down.sh
+        run: just doctor || true
+
+      - name: just local-down
+        if: always()
+        run: just local-down
