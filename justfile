@@ -1,11 +1,18 @@
 # kubemicrovm-ops — the KubeMicroVM adoption kit on chant.
 # `just` with no target lists everything.
+#
+# `just --list` prints the last comment line above a recipe, so each recipe's
+# description is one line and sits directly above it. Longer notes go above a
+# real blank line, which is what ends the block.
 
 default:
     @just --list
 
-# Install dependencies.
-install:
+# Note: named `deps` and not `install`, because that name belongs to the
+# install Op below — the one the docs alias and the one `teardown` pairs with.
+
+# Install node dependencies.
+deps:
     npm install
 
 # Typecheck the helpers, the two planes, and the config.
@@ -16,8 +23,12 @@ build:
 lint:
     npx chant lint .
 
-# Unit tests plus the tier matrix, which builds every tier and checks each
-# emitted field against the pinned CRD schemas.
+# Note: the tier matrix is the one worth knowing about. It builds all three
+# tiers and checks every emitted field against the pinned CRD schemas, because
+# a misspelled field is accepted by the API server and ignored by the
+# controller.
+
+# Unit tests, plus the tier matrix against the pinned CRD schemas.
 test:
     npx vitest run
 
@@ -25,7 +36,7 @@ test:
 ops-build:
     npm run ops:build
 
-# Everything CI-relevant.
+# Everything CI-relevant: typecheck, lint, tests.
 check: build lint test
 
 # Synthesize both planes for the current tier and target.
@@ -34,13 +45,15 @@ synth:
 
 # ── The local target: k3d + floci + m80. Free, and what CI runs. ──────────
 
-# Bring the whole local target up at one tier and apply the estate.
+# Stand the local target up at the minimal tier and apply the estate.
 minimal-local-e2e:
     bash scripts/local/local-up.sh minimal
 
+# The same at the prod tier: adds a class and a VPC egress connector.
 prod-local-e2e:
     bash scripts/local/local-up.sh prod
 
+# The same at prod-ha: a replica floor of two, across two subnets.
 prod-ha-local-e2e:
     bash scripts/local/local-up.sh prod-ha
 
@@ -48,9 +61,10 @@ prod-ha-local-e2e:
 local-down:
     bash scripts/local/local-down.sh
 
-# The install Op on its own, against a cluster and endpoints that already
-# exist. This is what an adopter on EKS runs; local-up.sh calls it after
-# standing up the emulators.
+# Note: this is what an adopter on EKS runs. local-up.sh calls it after
+# standing up the emulators, so both targets reach the same four phases.
+
+# The install Op on its own, against a cluster and endpoints that exist.
 install:
     npx chant run kubemicrovm-install
 
@@ -64,20 +78,26 @@ teardown:
 # existing EKS cluster, and KMV_SUBNET_IDS/KMV_SECURITY_GROUP_IDS from its
 # VPC. AWS_ENDPOINT_URL must be unset — that is what selects this target.
 
+# Minimal tier against real AWS. Costs money.
 minimal-live-e2e:
     bash scripts/live/live-up.sh minimal
 
+# Prod tier against real AWS. Costs money.
 prod-live-e2e:
     bash scripts/live/live-up.sh prod
 
-# Materially more cost than prod: two MicroVMs at the replica floor rather
+# Note: materially more than prod — two MicroVMs at the replica floor rather
 # than one, and a connector across two availability zones.
+
+# Prod-ha against real AWS. Costs the most of the three.
 prod-ha-live-e2e:
     bash scripts/live/live-up.sh prod-ha
 
 # ── Viewing ──────────────────────────────────────────────────────────────
 
-# Open the estate in behold at http://localhost:4600 — both substrates in one
-# graph, the tier picker switching between the three profiles.
+# Note: serves at http://localhost:4600, with the tier picker switching
+# between the three profiles. Needs a behold checkout beside this one.
+
+# Open the estate in behold — both substrates in one graph.
 view:
     cd ../behold && npm run dev -- preview ../kubemicrovm-ops
