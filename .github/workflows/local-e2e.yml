@@ -27,7 +27,9 @@ env:
   AWS_ACCESS_KEY_ID: test
   AWS_SECRET_ACCESS_KEY: test
   AWS_REGION: us-east-1
-  M80_IMAGE: m80:ci
+  # The released image, since v0.3.0 carries -serve-sts (m80#65). CI used to
+  # build from source to get past that.
+  M80_IMAGE: ghcr.io/intentius/m80:v0.3.0
 
 jobs:
   local-e2e:
@@ -45,14 +47,8 @@ jobs:
 
       - run: npm install
 
-      # The published m80 image predates -serve-sts, so a pull produces an
-      # emulator the operator's startup gate cannot pass. Build main instead —
-      # see INTENTIUS/m80#54, which tracks that mismatch.
-      - name: build m80 from main
-        run: |
-          git clone --depth 1 https://github.com/INTENTIUS/m80 /tmp/m80
-          docker build -t "${M80_IMAGE}" /tmp/m80
-
+      # Brings up floci, k3d and m80, then hands the ordering to the install
+      # Op — so what CI proves and what an adopter runs are the same phases.
       - name: bring the local target up at minimal
         run: bash scripts/local/local-up.sh minimal
 

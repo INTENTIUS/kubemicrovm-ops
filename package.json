@@ -13,12 +13,14 @@
     "synth:golden-image": "chant build src/golden-image --lexicon aws -o dist/golden-image.template.json",
     "synth:operator": "chant build src/operator --lexicon k8s -o dist/operator.yaml",
     "synth:workload": "chant build src/workload --lexicon k8s -o dist/workload.yaml",
+    "ops:build": "chant build ops",
     "synth": "npm run synth:aws-plane && npm run synth:golden-image && npm run synth:operator && npm run synth:workload"
   },
   "dependencies": {
     "@intentius/chant": "^0.37.2",
     "@intentius/chant-lexicon-aws": "^0.37.1",
-    "@intentius/chant-lexicon-k8s": "^0.37.3"
+    "@intentius/chant-lexicon-k8s": "^0.37.3",
+    "@intentius/chant-lexicon-temporal": "^0.37.2"
   },
   "devDependencies": {
     "@types/js-yaml": "^4.0.9",
