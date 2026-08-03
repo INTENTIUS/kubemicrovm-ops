@@ -105,8 +105,23 @@ echo "==> failure paths at tier ${TIER}"
 # has to be removed and recreated for it to bite. The name comes off the live
 # CR rather than being rederived, since naming.ts is the only thing that knows
 # how it is built.
-image="$(kubectl -n "${NS}" get microvmimage -o jsonpath='{.items[0].metadata.name}' 2>/dev/null)"
-[ -n "${image}" ] || fail "no MicroVMImage in ${NS} — stand the tier up first"
+# Which image, and not `.items[0]`. A tier change leaves the previous tier's
+# image in place — kubectl apply does not prune — so after minimal -> prod-ha
+# there are two, and the first one is the wrong one. Arming the wrong lever
+# then watching the right image build successfully is a five minute wait ending
+# in a message that names neither. Ask what this tier's VMs actually reference.
+image="$(kubectl -n "${NS}" get microvmreplicaset \
+    -o jsonpath='{.items[0].spec.template.spec.imageRef}' 2>/dev/null)"
+if [ -z "${image}" ]; then
+    image="$(kubectl -n "${NS}" get microvm -o jsonpath='{.items[0].spec.imageRef}' 2>/dev/null)"
+fi
+[ -n "${image}" ] || fail "nothing in ${NS} references an image — stand the tier up first"
+
+# The lever keys by the name m80 knows, which is the CR name the operator
+# passed to CreateMicrovmImage. imageRef is that name.
+kubectl -n "${NS}" get microvmimage "${image}" >/dev/null 2>&1 ||
+    fail "the VMs reference image ${image}, which does not exist in ${NS}"
+echo "    this tier's VMs reference ${image}"
 
 echo "  a build that fails"
 # The replica set goes first. m80 refuses to delete an image a live VM still
@@ -131,11 +146,13 @@ kubectl apply -f "${MANIFEST}" >/dev/null
 
 # FAILED rather than a timeout is the whole assertion: the operator has to
 # surface the service's answer, not sit on it.
+# Named, not {.items[*]}: with two images present a wildcard would report
+# "SUCCESSFUL FAILED" and match on the other tier's image.
 wait_for "the image build" \
-    "microvmimage -o jsonpath={.items[*].status.latestVersionState}" \
+    "microvmimage ${image} -o jsonpath={.status.latestVersionState}" \
     "FAILED"
 
-reason="$(kubectl -n "${NS}" get microvmimage -o jsonpath='{.items[0].status.latestVersionStateReason}' 2>/dev/null)"
+reason="$(kubectl -n "${NS}" get microvmimage "${image}" -o jsonpath='{.status.latestVersionStateReason}' 2>/dev/null)"
 if [ -n "${reason}" ]; then
     echo "    reason surfaced: ${reason}"
 else
@@ -156,8 +173,10 @@ else
     arm "{\"target\":\"connector\",\"name\":\"${network}\",\"reasonCode\":\"${code}\"}"
     kubectl apply -f "${MANIFEST}" >/dev/null
 
+    # Named for the same reason the image is, even though minimal declares no
+    # network so there is only ever one today.
     wait_for "the connector" \
-        "microvmnetwork -o jsonpath={.items[*].status.stateReasonCode}" \
+        "microvmnetwork ${network} -o jsonpath={.status.stateReasonCode}" \
         "${code}"
 fi
 
