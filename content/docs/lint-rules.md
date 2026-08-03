@@ -5,7 +5,7 @@ weight: 40
 
 # Lint rules
 
-Six rules are implemented across two mechanisms, and which mechanism a rule needs is the most useful thing on this page.
+Ten rules are implemented across two mechanisms, and which mechanism a rule needs is the most useful thing on this page.
 
 `.chant/rules/kmv-spec-values.ts` holds the ones that read **one file**: is this memory size real, is this field set, is this enum value one the service takes. Those are `LintRule`s, auto-discovered from the directory.
 
@@ -47,30 +47,23 @@ These run after synthesis, over every emitted document. `test/fixtures/estate-br
 | KMV002 | `imageRef`, `className` and `networkRef` resolve to something declared in the same namespace | Nothing. The resource applies cleanly and never becomes ready, with no error anywhere |
 | KMV020 | An image nothing references. Warning, not error | Nothing — a built image that never runs |
 
+KMV005 is the cross-plane rule and the main reason the kit declares both planes in one chant project. It only fires on a whole-project build (`chant build src`), where both lexicons' outputs are in one context; a per-stack build sees one plane and the rule skips rather than report what it cannot know. It also skips when the project declares no roles at all, which is the `reference-existing` seam rather than a mistake. What it cannot yet tell apart is a project that provisions some roles and deliberately references an external build role — that combination would be flagged.
+
+KMV022 taught the kit something. Its first version asked "does anything this build declares live in this namespace", which is the wrong question for the operator's namespace: it holds the chart's objects and none of the project's, so the rule flagged it. The kit now labels that namespace `kubemicrovm-ops/role: operator` — a statement of purpose rather than an inference from contents.
+
 Two limits worth stating rather than discovering. The reader these use is structural rather than a YAML parser, because it reads chant's own emissions and needs `apiVersion`, `kind`, `metadata` and one level of `spec`. It does not descend into `MicroVMReplicaSet.spec.template`, so a replica set's references are checked by `test/tier-matrix.test.ts` and not by KMV002 — and KMV020 skips a build with no bare `MicroVM` in it rather than report a false orphan.
 
 ## Designed, not built
 
-| Rule | Check |
-|------|-------|
-| KMV001 | Every MicroVM CR sits in a namespace declared with the `lambda.aws.amazon.com/manage-microvms=true` label. Mirrors the webhook's namespace enforcement. |
-| KMV002 | `imageRef` on a `MicroVM` or `MicroVMReplicaSet` resolves to a declared `MicroVMImage` in the same namespace. |
-| KMV004 | A class reference on a VM resolves to a declared `MicroVMClass`. |
-| KMV005 | `buildRoleArn` on a `MicroVMImage` matches a role declared in the AWS plane of the same project, and a `iam:PassRole` grant covers it. Skipped when IAM is referenced by parameter rather than declared. |
-| KMV006 | `MicroVMNetwork` respects service limits on subnet count and egress connectors. Bounds mirror the chant `MicrovmApp` composite's validation, 1 to 16 subnets, at most 10 egress connectors. |
-| KMV007 | A pod annotated `lambda.microvm.auth` references a declared `MicroVM` in a reachable namespace. |
-| KMV008 | Idle and suspend durations are coherent, suspend threshold not shorter than idle threshold. |
+| Rule | Check | Why not yet |
+|------|-------|-------------|
+| KMV007 | A pod annotated `lambda.microvm.auth` references a declared `MicroVM` in a reachable namespace | The kit declares no consumer pods yet. The rule is easy and would have nothing to check |
+| KMV021 | The operator chart version and the CRD pin agree | Covered where it belongs instead: the `crds-match-the-pinned-chart` CI job pulls the chart and diffs its `crds/` against the repo's, which checks the real thing rather than two numbers agreeing |
 
-## Post-synth checks
-
-| Check | What it validates |
-|-------|-------------------|
-| KMV020 | Serialized CR set contains no image that is never referenced by a VM, replica set, or class. Warning, not error. |
-| KMV021 | The operator Helm release version and the CRD schema pin agree. Guards against typed source drifting from the installed operator. |
-| KMV022 | Every namespace the output touches is either the operator namespace or carries the manage label. |
+KMV004 folded into KMV002 — a class reference and an image reference are the same question asked of a different field, and one rule answering both is one message to read.
 
 ## Sources of truth for each rule
 
-KMV001 and KMV022 mirror the admission webhook. KMV002, KMV004, and KMV007 are reference-resolution rules that exist because the schema stores them as plain strings. KMV003 and KMV006 mirror service limits documented upstream and already encoded once in chant's `MicrovmApp` composite. KMV005 is the cross-plane rule and the main reason the kit declares both planes in one project.
+KMV001 and KMV022 mirror the admission webhook. KMV002 and KMV007 are reference-resolution rules that exist because the schema stores those references as plain strings. KMV003 and KMV006 mirror service limits documented upstream and already encoded once in chant's `MicrovmApp` composite — declared a second time here because the lexicon does not export them ([chant#1374](https://github.com/INTENTIUS/chant/issues/1374)). KMV005 is the cross-plane rule and the main reason the kit declares both planes in one project. KMV009 and KMV010 came from deploying, not from reading anything.
 
-Rule details will move to one page per rule once implementation starts, matching the chant lexicon docs layout.
+Numbering follows chant convention: declarative source rules from KMV001, post-synth from KMV020. That split turned out not to match the useful one — what decides a rule's mechanism is whether it reads one file or the whole build, not what number it was given. KMV001 is a policy and KMV003 is a source rule, and the numbers say the opposite. Left alone rather than renumbered, because a rule id in a build log is a thing people search for.

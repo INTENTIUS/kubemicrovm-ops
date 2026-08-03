@@ -22,7 +22,7 @@ import {
   MicroVMReplicaSet,
   Namespace,
 } from "@intentius/chant-lexicon-k8s";
-import { kmvNaming, MANAGED_NAMESPACE_LABEL } from "../lib/naming";
+import { kmvNaming, MANAGED_NAMESPACE_LABEL, OPERATOR_NAMESPACE_LABEL } from "../lib/naming";
 import {
   baseImageArn,
   bucketName,
@@ -53,7 +53,8 @@ const className = naming.name("class", { service: "k8sObject" });
 const networkName = naming.name("network", { service: "k8sObject" });
 const vmName = naming.name("vm", { service: "k8sObject" });
 
-const operatorNsMetadata = { name: operatorNamespace, labels };
+const operatorNsLabels = { ...labels, [OPERATOR_NAMESPACE_LABEL]: "operator" };
+const operatorNsMetadata = { name: operatorNamespace, labels: operatorNsLabels };
 const workloadNsLabels = { ...labels, [MANAGED_NAMESPACE_LABEL]: "true" };
 const workloadNsMetadata = { name: workloadNamespace, labels: workloadNsLabels };
 

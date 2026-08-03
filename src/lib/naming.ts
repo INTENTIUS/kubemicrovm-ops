@@ -105,6 +105,16 @@ export function kmvName(params: NamingParams, resource: string, opts?: { service
 /** The label the admission webhook requires on any namespace holding MicroVMs. */
 export const MANAGED_NAMESPACE_LABEL = "lambda.aws.amazon.com/manage-microvms";
 
+/**
+ * Marks the operator's own namespace as this kit's, so a check can tell it
+ * apart from a namespace nothing uses.
+ *
+ * It holds the chart's objects and none of this project's, so "does anything
+ * declared live here" is the wrong question to ask of it — KMV022 asked
+ * exactly that and flagged it. A namespace the kit creates on purpose says so.
+ */
+export const OPERATOR_NAMESPACE_LABEL = "kubemicrovm-ops/role";
+
 /** Lowercase, collapse anything outside `[a-z0-9-]` to a hyphen, trim hyphens. */
 function sanitize(raw: string): string {
   return raw
