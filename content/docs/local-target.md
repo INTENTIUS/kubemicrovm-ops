@@ -81,7 +81,17 @@ The levers are keyed by resource name and arm *before* the resource exists — "
 
 It is destructive to the estate on purpose. `just apply-tier <tier>` puts it back.
 
-`local-up.sh` starts m80 with `-enable-injection` for this. m80 leaves it off by default and is right to: nothing under `/_m80/` is signed, so anything that can reach the port can arm a failure. On a throwaway k3d cluster that is a reasonable trade, and `M80_ENABLE_INJECTION=0` declines it.
+### It does not work against a published image yet
+
+`local-up.sh` leaves `-enable-injection` off by default, and not because the levers are risky on a throwaway cluster. The flag landed on m80 main seven hours after v0.3.0 was tagged, so no published image carries it ([m80#74](https://github.com/INTENTIUS/m80/issues/74)) — and an unknown flag is not ignored, so turning it on against the default image crashloops m80 and takes the whole stand-up with it. Until a release carries it:
+
+```sh
+docker build -t m80:main ~/checkouts/m80
+M80_IMAGE=m80:main M80_ENABLE_INJECTION=1 just prod-ha-local-e2e
+just break-it prod-ha
+```
+
+That is also why `local-e2e` does not run this step yet. Building m80 from source in CI is what [#23](https://github.com/INTENTIUS/kubemicrovm-ops/issues/23) removed, and it is not worth reintroducing to reach one step. The workflow carries the step commented out with the condition for turning it on.
 
 The seven reason codes are the service model's own: `SubnetOutOfIPAddresses` is the default here, and `REASON_CODE` picks another.
 

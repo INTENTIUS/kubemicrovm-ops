@@ -64,8 +64,18 @@ arm() {
     local body="$1" out
     out="$(curl -sf -X POST "${M80}/_m80/inject" -d "${body}" 2>/dev/null)"
     if [ -z "${out}" ]; then
-        fail "m80 refused the lever. Injection is off unless m80 runs with
-    -enable-injection — local-up.sh passes it unless M80_ENABLE_INJECTION=0.
+        fail "m80 refused the lever, which is one of two things and not the estate.
+
+    The flag is off. local-up.sh leaves -enable-injection off by default:
+        M80_ENABLE_INJECTION=1 just prod-ha-local-e2e
+
+    Or the image has no such flag. -enable-injection landed on m80 main
+    after v0.3.0 was tagged, so no published image carries it (m80#74) and
+    turning it on with one crashloops m80 rather than being ignored. Until
+    a release carries it, this needs a build of m80 main:
+        docker build -t m80:main ~/checkouts/m80
+        M80_IMAGE=m80:main M80_ENABLE_INJECTION=1 just prod-ha-local-e2e
+
     body was: ${body}"
     fi
     case "${out}" in

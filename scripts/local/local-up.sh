@@ -51,12 +51,23 @@ AWS_REGION="${AWS_REGION:-us-east-1}"
 # the harness raises it the way a real account used for this would have been.
 MAX_ACCOUNT_MEMORY_MIB="${MAX_ACCOUNT_MEMORY_MIB:-262144}"
 # m80's failure-injection levers, which is how a failed image build or a
-# connector failure code can be caused on purpose. Off in m80 by default and
-# deliberately so — nothing under /_m80/ is signed, so anything that reaches
-# the port can arm them. On here, because this cluster is a throwaway k3d on a
-# laptop and provoking a failure is the point of having an emulator at all.
-# M80_ENABLE_INJECTION=0 turns it back off.
-M80_ENABLE_INJECTION="${M80_ENABLE_INJECTION:-1}"
+# connector failure code can be caused on purpose (`just break-it`).
+#
+# Off by default, and not because the levers are risky here — a throwaway k3d
+# cluster is exactly where that trade is worth making. Off because
+# -enable-injection does not exist in any published m80 image: it landed on
+# m80 main in m80#66, seven hours after v0.3.0 was tagged. An unknown flag is
+# not ignored, so turning this on against the default image does not lose the
+# levers, it crashloops the emulator and takes the whole stand-up with it.
+#
+# Turn it on with an image that has the flag, which today means a build of
+# m80 main:
+#
+#   docker build -t m80:main ~/checkouts/m80
+#   M80_IMAGE=m80:main M80_ENABLE_INJECTION=1 just prod-ha-local-e2e
+#
+# The default flips back to 1 when a release carries it (m80#74).
+M80_ENABLE_INJECTION="${M80_ENABLE_INJECTION:-0}"
 if [ "${M80_ENABLE_INJECTION}" = "1" ]; then
     INJECT_ARG=', "-enable-injection"'
 else

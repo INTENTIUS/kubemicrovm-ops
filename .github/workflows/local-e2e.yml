@@ -91,14 +91,20 @@ jobs:
       - name: just validate prod-ha
         run: just validate prod-ha
 
-      # Last, because it deliberately breaks the estate. Everything above this
-      # point tests that things work; this is the only step that tests what
-      # happens when they do not, which is the half an adopter cannot rehearse
-      # on a real account — you cannot ask EC2 to run a subnet out of
-      # addresses. prod-ha is the tier that declares a connector, so running it
-      # here covers both the failed build and the failed connector.
-      - name: just break-it prod-ha
-        run: just break-it prod-ha
+      # `just break-it prod-ha` belongs here — last, because it deliberately
+      # breaks the estate, and at prod-ha because that is the tier declaring a
+      # connector, so one run covers both the failed build and the failed
+      # connector.
+      #
+      # It cannot run yet. The levers need -enable-injection, which landed on
+      # m80 main seven hours after v0.3.0 was tagged, so no published image has
+      # it (m80#74). Building m80 from source here is what #23 was about
+      # removing, and it is not worth reintroducing to reach one step.
+      #
+      # Turn this on when a release carries the flag; nothing else changes.
+      #
+      #   - name: just break-it prod-ha
+      #     run: just break-it prod-ha
 
       - name: what the operator saw
         if: always()
