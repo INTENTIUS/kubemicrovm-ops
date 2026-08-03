@@ -4,7 +4,7 @@ A chant adoption kit for [KubeMicroVM](https://github.com/codriverlabs/KubeMicro
 
 One source tree, three deployment tiers, two deploy targets, and a local target that costs nothing.
 
-The design documents are a Hugo site — `hugo server` to read them locally. Nothing publishes them yet: GitHub Pages is unavailable while this repo is private, so CI builds the site as a gate (a broken `relref` fails the build) and stops there. Start with [Tiers and targets](content/docs/tiers.md) — it explains the shape of everything else here.
+The design documents are a Hugo site, published at [intentius.github.io/kubemicrovm-ops](https://intentius.github.io/kubemicrovm-ops/) — `hugo server` to read them locally. Start with [Tiers and targets](content/docs/tiers.md) — it explains the shape of everything else here.
 
 ## Try it without an AWS account
 
