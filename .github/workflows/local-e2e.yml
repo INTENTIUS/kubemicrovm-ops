@@ -27,9 +27,10 @@ env:
   AWS_ACCESS_KEY_ID: test
   AWS_SECRET_ACCESS_KEY: test
   AWS_REGION: us-east-1
-  # The released image, since v0.3.0 carries -serve-sts (m80#65). CI used to
-  # build from source to get past that.
-  M80_IMAGE: ghcr.io/intentius/m80:v0.3.0
+  # M80_IMAGE is deliberately not set. CI ran an override here for long enough
+  # that the script's own default rotted underneath it unnoticed, which is how
+  # a first run came to crashloop while this job stayed green. What an adopter
+  # gets is what this job runs.
 
 jobs:
   local-e2e:

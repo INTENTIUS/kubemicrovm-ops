@@ -29,14 +29,14 @@ Every piece is overridable: `FLOCI_PORT`, `FLOCI_IMAGE`, `M80_IMAGE`, `M80_PORT`
 
 **Stock floci is enough, for now.** Everything the AWS plane declares — an S3 bucket, a bucket policy, two IAM roles and three managed policies — creates cleanly on `floci/floci:latest` from Docker Hub. That was worth checking rather than assuming: an earlier version of this page said the fork was required, and it was not, because the one upstream gap that would bite is CloudFormation dropping a security group's rules and tags, and this kit declares no security groups. Point `FLOCI_IMAGE` at a build of [lex00/floci](https://github.com/lex00/floci) if the estate grows one.
 
-**m80 must be built from main, not pulled.** The published `ghcr.io/intentius/m80:v0.2.0` predates `-serve-sts`, and so does `:latest`. Without that flag nothing answers the operator's startup gate and it never becomes ready. Build it and pass the tag:
+**m80 needs v0.3.0 or newer, and the published image is one.** The harness runs m80 with `-serve-sts`, the flag that answers the operator's startup gate. `v0.2.0` and the `:latest` of that era predate it, and an unknown flag is not ignored — the binary exits, so an older tag crashloops rather than degrading. v0.3.0 carries it ([m80#65](https://github.com/INTENTIUS/m80/issues/65)), and that is the pinned default; earlier versions of this page told you to build from source, which is no longer necessary.
+
+Point `M80_IMAGE` at your own build to test a change to m80 itself. A locally built image is in no registry, so the script imports it into the cluster for you:
 
 ```sh
-docker build -t m80:local ~/checkouts/m80
-M80_IMAGE=m80:local just minimal-local-e2e
+docker build -t m80:candidate ~/checkouts/m80
+M80_IMAGE=m80:candidate just minimal-local-e2e
 ```
-
-That mismatch between the published image and main is tracked as [m80#54](https://github.com/INTENTIUS/m80/issues/54).
 
 ## Four things the schemas do not tell you
 
