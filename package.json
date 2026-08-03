@@ -10,14 +10,15 @@
     "test": "vitest run",
     "build": "npm run tsc",
     "synth:aws-plane": "chant build src/aws-plane --lexicon aws -o dist/aws-plane.template.json",
+    "synth:golden-image": "chant build src/golden-image --lexicon aws -o dist/golden-image.template.json",
     "synth:operator": "chant build src/operator --lexicon k8s -o dist/operator.yaml",
     "synth:workload": "chant build src/workload --lexicon k8s -o dist/workload.yaml",
-    "synth": "npm run synth:aws-plane && npm run synth:operator && npm run synth:workload"
+    "synth": "npm run synth:aws-plane && npm run synth:golden-image && npm run synth:operator && npm run synth:workload"
   },
   "dependencies": {
-    "@intentius/chant": "^0.34.1",
-    "@intentius/chant-lexicon-aws": "^0.34.1",
-    "@intentius/chant-lexicon-k8s": "^0.36.0"
+    "@intentius/chant": "^0.37.2",
+    "@intentius/chant-lexicon-aws": "^0.37.1",
+    "@intentius/chant-lexicon-k8s": "^0.37.3"
   },
   "devDependencies": {
     "@types/js-yaml": "^4.0.9",
