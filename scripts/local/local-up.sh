@@ -67,44 +67,13 @@ curl -sf "${AWS_ENDPOINT_URL}/_localstack/health" >/dev/null || {
     echo "floci did not come up on ${AWS_ENDPOINT_URL}" >&2; exit 1
 }
 
-echo "==> AWS plane: bucket, build role, operator role"
-mkdir -p "${ROOT}/dist"
-(cd "${ROOT}" && npx chant build src/aws-plane --lexicon aws -o dist/aws-plane.template.json >/dev/null)
-aws cloudformation deploy \
-    --stack-name "${STACK_NAME}" \
-    --template-file "${ROOT}/dist/aws-plane.template.json" \
-    --capabilities CAPABILITY_NAMED_IAM \
-    --no-cli-pager >/dev/null
-
-BUCKET="$(aws cloudformation describe-stack-resources --stack-name "${STACK_NAME}" \
-    --query "StackResources[?ResourceType=='AWS::S3::Bucket'].PhysicalResourceId | [0]" --output text)"
-BUILD_ROLE_ARN="arn:aws:iam::000000000000:role/$(aws cloudformation describe-stack-resources --stack-name "${STACK_NAME}" \
-    --query "StackResources[?LogicalResourceId=='buildRole'].PhysicalResourceId | [0]" --output text)"
-OPERATOR_ROLE_ARN="arn:aws:iam::000000000000:role/$(aws cloudformation describe-stack-resources --stack-name "${STACK_NAME}" \
-    --query "StackResources[?LogicalResourceId=='operatorRole'].PhysicalResourceId | [0]" --output text)"
-echo "    bucket      ${BUCKET}"
-echo "    build role  ${BUILD_ROLE_ARN}"
-
-# The artifact the image build would read. Nothing fetches it on this target —
-# the real MicroVMs service assumes the build role and fetches the object
-# itself, inside AWS — but the estate is not honest without it present.
-echo "==> artifact"
-TMP_ARTIFACT="$(mktemp -d)/app.zip"
-printf 'placeholder artifact for the local target\n' > "${TMP_ARTIFACT%.zip}.txt"
-(cd "$(dirname "${TMP_ARTIFACT}")" && zip -q -j "${TMP_ARTIFACT}" "${TMP_ARTIFACT%.zip}.txt")
-aws s3 cp "${TMP_ARTIFACT}" "s3://${BUCKET}/app/app.zip" >/dev/null
-
 echo "==> cluster ${CLUSTER}"
 k3d cluster delete "${CLUSTER}" >/dev/null 2>&1 || true
 k3d cluster create "${CLUSTER}" --agents 1 --wait --timeout 300s >/dev/null
 
-echo "==> cert-manager (the operator's webhooks need it)"
-helm repo add jetstack https://charts.jetstack.io >/dev/null 2>&1 || true
-helm repo update >/dev/null
-helm install cert-manager jetstack/cert-manager \
-    --namespace cert-manager --create-namespace --set crds.enabled=true \
-    --wait --timeout 6m >/dev/null
-
+# A locally built image is in no registry, so k3d cannot pull it. Importing is
+# what lets a contributor point the harness at their own build:
+#   M80_IMAGE=m80:candidate ./scripts/local/local-up.sh
 if docker image inspect "${M80_IMAGE}" >/dev/null 2>&1; then
     echo "==> importing local image ${M80_IMAGE}"
     k3d image import "${M80_IMAGE}" -c "${CLUSTER}" >/dev/null
@@ -141,30 +110,17 @@ spec:
 YAML
 kubectl -n "${NS}" rollout status deploy/m80 --timeout=300s
 
-echo "==> CRDs, pinned to chart ${CHART_VERSION}"
-kubectl apply -f "${ROOT}/crds" >/dev/null
+# From here the install Op owns the ordering — AWS plane, operator, estate,
+# converge. This script's job was the substrate underneath it: floci, k3d and
+# m80 are the local target's own lifecycle and nothing an adopter on EKS has.
+#
+# So what CI proves and what an adopter runs are the same four phases, reached
+# by different routes.
+export AWS_MICROVM_ENDPOINT="http://m80.${NS}.svc.cluster.local:${M80_PORT}"
+export AWS_ENDPOINT_URL_STS="${AWS_MICROVM_ENDPOINT}"
 
-echo "==> KubeMicroVM operator ${CHART_VERSION}"
-helm install kube-microvm-operator \
-    "oci://ghcr.io/codriverlabs/helm/kube-microvm-operator" --version "${CHART_VERSION}" \
-    -n "${NS}" \
-    --set "app.envs.AWS_MICROVM_ENDPOINT=http://m80.${NS}.svc.cluster.local:${M80_PORT}" \
-    --set "app.envs.AWS_REGION=${AWS_REGION}" \
-    --wait --timeout 6m >/dev/null
-
-# The chart templates only the env keys it knows about, so credentials and the
-# STS override have to be patched in afterwards. Both are required: the
-# operator's startup gate calls sts:GetCallerIdentity with no endpoint
-# override of its own, and without credentials the SDK's default chain finds
-# none. Filed upstream as codriverlabs/KubeMicroVM#50 and #52.
-kubectl -n "${NS}" set env deploy/kube-microvm-operator \
-    AWS_ACCESS_KEY_ID=test AWS_SECRET_ACCESS_KEY=test \
-    AWS_EC2_METADATA_DISABLED=true \
-    "AWS_ENDPOINT_URL_STS=http://m80.${NS}.svc.cluster.local:${M80_PORT}" >/dev/null
-kubectl -n "${NS}" rollout status deploy/kube-microvm-operator --timeout=300s
-
-echo "==> estate at tier ${TIER}"
-bash "$(dirname "$0")/apply-estate.sh" "${TIER}" >/dev/null
+echo "==> install Op"
+(cd "${ROOT}" && npx chant run kubemicrovm-install)
 
 echo
 echo "local target up at tier ${TIER}."

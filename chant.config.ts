@@ -15,7 +15,7 @@ type Config = ChantConfig & { k8s?: K8sChantConfig };
 const env = process.env.KMV_ENV ?? "dev";
 
 export default {
-  lexicons: ["aws", "k8s"],
+  lexicons: ["aws", "k8s", "temporal"],
   // Whole-project discovery (bare `chant lifecycle diff|snapshot`) stays inside
   // src/, so it never walks the Hugo docs site or the test fixtures.
   sourceDir: "src",
@@ -143,7 +143,9 @@ export default {
       {
         // .chant/rules/** is plain TypeScript AST code, not composite
         // authoring, so the static-evaluability rules do not apply.
-        files: [".chant/rules/**"],
+        // ops/** is Op definition code — shell steps and phases, not composite
+        // property expressions.
+        files: [".chant/rules/**", "ops/**"],
         rules: { EVL002: "off", EVL003: "off", EVL004: "off" },
       },
       {

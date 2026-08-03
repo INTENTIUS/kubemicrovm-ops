@@ -21,6 +21,10 @@ lint:
 test:
     npx vitest run
 
+# Compile the Ops to worker code under ops/dist/.
+ops-build:
+    npm run ops:build
+
 # Everything CI-relevant.
 check: build lint test
 
@@ -40,9 +44,19 @@ prod-local-e2e:
 prod-ha-local-e2e:
     bash scripts/local/local-up.sh prod-ha
 
-# Tear the local target down.
+# Tear the local target down: the teardown Op, then the cluster and floci.
 local-down:
     bash scripts/local/local-down.sh
+
+# The install Op on its own, against a cluster and endpoints that already
+# exist. This is what an adopter on EKS runs; local-up.sh calls it after
+# standing up the emulators.
+install:
+    npx chant run kubemicrovm-install
+
+# The estate and the operator removed, cluster left where it was found.
+teardown:
+    npx chant run kubemicrovm-teardown
 
 # ── The real target: a live account and a live EKS cluster. Costs money. ──
 #

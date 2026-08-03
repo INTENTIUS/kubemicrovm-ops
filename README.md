@@ -52,7 +52,9 @@ An **adoption seam** is whether the kit provisions a prerequisite, references on
 | `.chant/rules/` | KMV rules that read one file — a memory size, a required field, an enum |
 | `.chant/policies/` | KMV rules that read the whole build — namespace labels, reference resolution |
 | `test/fixtures/broken/` | One deliberately-wrong source per rule |
-| `scripts/local/` | k3d + floci + m80 |
+| `ops/` | The install and teardown Ops — the ordering, as a durable workflow |
+| `scripts/install/` | The steps the Ops call, on either target |
+| `scripts/local/` | k3d + floci + m80, then the install Op |
 | `scripts/live/` | Real AWS and a real EKS cluster |
 | `content/docs/` | Design documents |
 | `themes/hugo-book` | Theme (git submodule) |
