@@ -56,6 +56,13 @@ jobs:
       - name: the minimal estate converges
         run: bash scripts/local/assert-converged.sh minimal
 
+      # Doctor is a diagnostic a reader runs when something is wrong, so the
+      # risk is that it rots unnoticed — it is never exercised by a green run
+      # unless a green run exercises it. Against a healthy stack every check
+      # passes, which is the assertion.
+      - name: doctor agrees the stack is healthy
+        run: bash scripts/local/doctor.sh
+
       - name: change tier to prod-ha over the live estate
         run: |
           kubectl -n microvm-demo delete microvm --all --timeout=120s
