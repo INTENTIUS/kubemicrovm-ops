@@ -65,6 +65,36 @@ kubectl -n kube-microvm set env deploy/kube-microvm-operator \
 
 The chart templates only the `app.envs` keys it knows, so anything else is dropped silently — [KubeMicroVM#52](https://github.com/codriverlabs/KubeMicroVM/issues/52). And the operator's startup gate calls `sts:GetCallerIdentity` with no endpoint override of its own, so without `AWS_ENDPOINT_URL_STS` pointed back at m80 the health check reports `awsConnectivity: false` forever, readiness never passes, and every custom resource create fails with `no endpoints available` — [KubeMicroVM#50](https://github.com/codriverlabs/KubeMicroVM/issues/50). Both maintainer replies say a fix is intended; when they land, these two lines go.
 
+## Breaking it on purpose
+
+Everything above tests that things work. The other half — what the estate does when a build fails or a connector cannot be created — is the half nobody can rehearse on a real account, because you cannot ask EC2 to run a subnet out of addresses and you cannot ask CodeBuild to fail on request.
+
+Against m80 you can. It ships failure-injection levers, and since [m80#56](https://github.com/INTENTIUS/m80/issues/56) they have an HTTP surface rather than being reachable only from Go:
+
+```sh
+just break-it prod-ha
+```
+
+That deletes the image, arms `{"target":"build","name":"<image>"}`, re-applies, and asserts the `MicroVMImage` reaches `FAILED` rather than sitting in `CREATING` until something times out. At the production tiers it then does the same to the `MicroVMNetwork` with a reason code, and asserts the code comes back on `status.stateReasonCode`.
+
+The levers are keyed by resource name and arm *before* the resource exists — "the next build of this image fails" — which is why the check deletes and recreates rather than poking a live resource.
+
+It is destructive to the estate on purpose. `just apply-tier <tier>` puts it back.
+
+### It does not work against a published image yet
+
+`local-up.sh` leaves `-enable-injection` off by default, and not because the levers are risky on a throwaway cluster. The flag landed on m80 main seven hours after v0.3.0 was tagged, so no published image carries it ([m80#74](https://github.com/INTENTIUS/m80/issues/74)) — and an unknown flag is not ignored, so turning it on against the default image crashloops m80 and takes the whole stand-up with it. Until a release carries it:
+
+```sh
+docker build -t m80:main ~/checkouts/m80
+M80_IMAGE=m80:main M80_ENABLE_INJECTION=1 just prod-ha-local-e2e
+just break-it prod-ha
+```
+
+That is also why `local-e2e` does not run this step yet. Building m80 from source in CI is what [#23](https://github.com/INTENTIUS/kubemicrovm-ops/issues/23) removed, and it is not worth reintroducing to reach one step. The workflow carries the step commented out with the condition for turning it on.
+
+The seven reason codes are the service model's own: `SubnetOutOfIPAddresses` is the default here, and `REASON_CODE` picks another.
+
 ## Quotas
 
 m80 defaults to the account memory ceiling a fresh AWS account has, 4096 MiB. At `prod-ha`'s 4096 MiB per VM that is one VM and nothing left over, so the script raises it the way a real account used for this would have been. Override with `MAX_ACCOUNT_MEMORY_MIB`.

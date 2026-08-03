@@ -50,6 +50,29 @@ AWS_REGION="${AWS_REGION:-us-east-1}"
 # A prod-ha deployment at 4096 MiB per VM is two VMs and nothing left over, so
 # the harness raises it the way a real account used for this would have been.
 MAX_ACCOUNT_MEMORY_MIB="${MAX_ACCOUNT_MEMORY_MIB:-262144}"
+# m80's failure-injection levers, which is how a failed image build or a
+# connector failure code can be caused on purpose (`just break-it`).
+#
+# Off by default, and not because the levers are risky here — a throwaway k3d
+# cluster is exactly where that trade is worth making. Off because
+# -enable-injection does not exist in any published m80 image: it landed on
+# m80 main in m80#66, seven hours after v0.3.0 was tagged. An unknown flag is
+# not ignored, so turning this on against the default image does not lose the
+# levers, it crashloops the emulator and takes the whole stand-up with it.
+#
+# Turn it on with an image that has the flag, which today means a build of
+# m80 main:
+#
+#   docker build -t m80:main ~/checkouts/m80
+#   M80_IMAGE=m80:main M80_ENABLE_INJECTION=1 just prod-ha-local-e2e
+#
+# The default flips back to 1 when a release carries it (m80#74).
+M80_ENABLE_INJECTION="${M80_ENABLE_INJECTION:-0}"
+if [ "${M80_ENABLE_INJECTION}" = "1" ]; then
+    INJECT_ARG=', "-enable-injection"'
+else
+    INJECT_ARG=""
+fi
 
 STACK_NAME="${STACK_NAME:-kubemicrovm-ops-aws-plane}"
 ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
@@ -147,7 +170,7 @@ spec:
       containers:
         - name: m80
           image: ${M80_IMAGE}
-          args: ["-addr", ":${M80_PORT}", "-build-delay", "500ms", "-max-account-memory-mib", "${MAX_ACCOUNT_MEMORY_MIB}", "-serve-sts"]
+          args: ["-addr", ":${M80_PORT}", "-build-delay", "500ms", "-max-account-memory-mib", "${MAX_ACCOUNT_MEMORY_MIB}", "-serve-sts"${INJECT_ARG}]
           ports: [{ containerPort: ${M80_PORT} }]
           readinessProbe:
             httpGet: { path: /_m80/health, port: ${M80_PORT} }
