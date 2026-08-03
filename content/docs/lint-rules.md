@@ -5,7 +5,13 @@ weight: 40
 
 # Lint rules
 
-Three rules are implemented, in `.chant/rules/kmv-spec-values.ts`. The rest are designed and not built — [#15](https://github.com/INTENTIUS/kubemicrovm-ops/issues/15) carries them.
+Six rules are implemented across two mechanisms, and which mechanism a rule needs is the most useful thing on this page.
+
+`.chant/rules/kmv-spec-values.ts` holds the ones that read **one file**: is this memory size real, is this field set, is this enum value one the service takes. Those are `LintRule`s, auto-discovered from the directory.
+
+`.chant/policies/kmv-estate.ts` holds the ones that read **the whole build**: does the namespace this resource names exist and carry the label, does this reference resolve. Those are `PostSynthCheck`s, listed in `chant.config.ts` under `lint.policies`, and they run against every serialized output at once. A source rule cannot answer either question, because both are about two files.
+
+The rest are designed and not built — [#15](https://github.com/INTENTIUS/kubemicrovm-ops/issues/15) carries them.
 
 The kit ships a lint pack with the `KMV` prefix. The principle is the same one the chant lexicons follow. Anything answerable from the declared source is checked at build time. The operator's webhook and the MicroVM service remain the runtime authority. The lint pack mirrors them so their rejections arrive before apply, all at once, with source locations.
 
@@ -31,6 +37,18 @@ The first cut of KMV009 was looser still — it treated `maxVersionsToKeep` as a
 
 This is the beginning of M2's webhook-rejection test. It is not the whole of it: the exit criterion is every admission-time failure the upstream UAT exercises, and this is three.
 
+## Implemented: estate-level
+
+These run after synthesis, over every emitted document. `test/fixtures/estate-broken/` is a source that fails both, and `test/estate-policies.test.ts` drives it through a real `chant build` rather than calling the checks directly — half of what is being tested is the wiring, and a policy listed in the config that never loads would pass a unit test and catch nothing.
+
+| Rule | Check | The runtime error it replaces |
+|------|-------|------------------------------|
+| KMV001 | Every custom resource sits in a namespace this build declares with `lambda.aws.amazon.com/manage-microvms=true` | The admission webhook rejects the resource and names the *resource*, when what is wrong is a `Namespace` in another file |
+| KMV002 | `imageRef`, `className` and `networkRef` resolve to something declared in the same namespace | Nothing. The resource applies cleanly and never becomes ready, with no error anywhere |
+| KMV020 | An image nothing references. Warning, not error | Nothing — a built image that never runs |
+
+Two limits worth stating rather than discovering. The reader these use is structural rather than a YAML parser, because it reads chant's own emissions and needs `apiVersion`, `kind`, `metadata` and one level of `spec`. It does not descend into `MicroVMReplicaSet.spec.template`, so a replica set's references are checked by `test/tier-matrix.test.ts` and not by KMV002 — and KMV020 skips a build with no bare `MicroVM` in it rather than report a false orphan.
+
 ## Designed, not built
 
 | Rule | Check |
@@ -50,8 +68,6 @@ This is the beginning of M2's webhook-rejection test. It is not the whole of it:
 | KMV020 | Serialized CR set contains no image that is never referenced by a VM, replica set, or class. Warning, not error. |
 | KMV021 | The operator Helm release version and the CRD schema pin agree. Guards against typed source drifting from the installed operator. |
 | KMV022 | Every namespace the output touches is either the operator namespace or carries the manage label. |
-
-KMV001 is worth a note. It is the rule the design page leads with, and the one a source-level check is worst at: whether a custom resource's namespace carries the manage label is a fact about two files, and the rule loader only supports per-file source rules. `test/tier-matrix.test.ts` checks it on emitted output across all three tiers today, which is the right layer for it. It becomes a lint rule when chant supports project-local post-synth checks.
 
 ## Sources of truth for each rule
 

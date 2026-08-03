@@ -49,7 +49,8 @@ An **adoption seam** is whether the kit provisions a prerequisite, references on
 | `src/workload/` | Namespaces and the five custom resources |
 | `crds/` | KubeMicroVM's CRDs, pinned to chart 1.0.11 |
 | `test/tier-matrix.test.ts` | Builds every tier and checks each field against those CRDs |
-| `.chant/rules/` | The KMV lint pack — three rules, each replacing a runtime failure |
+| `.chant/rules/` | KMV rules that read one file — a memory size, a required field, an enum |
+| `.chant/policies/` | KMV rules that read the whole build — namespace labels, reference resolution |
 | `test/fixtures/broken/` | One deliberately-wrong source per rule |
 | `scripts/local/` | k3d + floci + m80 |
 | `scripts/live/` | Real AWS and a real EKS cluster |
