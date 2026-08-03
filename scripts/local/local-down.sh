@@ -20,6 +20,6 @@ echo "==> cluster ${CLUSTER}"
 k3d cluster delete "${CLUSTER}" >/dev/null 2>&1 || true
 
 echo "==> floci"
-docker rm -f floci-kmv >/dev/null 2>&1 || true
+docker rm -f "${FLOCI_CONTAINER:-floci}" >/dev/null 2>&1 || true
 
 echo "local target down."

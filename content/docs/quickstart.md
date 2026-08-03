@@ -108,7 +108,9 @@ git clone https://github.com/INTENTIUS/behold ../behold
 just view
 ```
 
-Opens [behold](https://github.com/INTENTIUS/behold) on the project: both planes in one graph, the AWS roles and buckets next to the custom resources they are referenced by. It looks for a checkout at `../behold`, or wherever `BEHOLD_DIR` points, and says so rather than failing obscurely if there is none. See [Operating with behold]({{< relref "behold" >}}).
+Opens [behold](https://github.com/INTENTIUS/behold) on the project: both planes in one graph, the AWS roles and buckets next to the custom resources that reference them, coloured by drift. It looks for a checkout at `../behold`, or wherever `BEHOLD_DIR` points, and says so rather than failing obscurely if there is none.
+
+Stand the estate up first — this reads a live cluster rather than only your source. See [Operating with behold]({{< relref "behold" >}}).
 
 ## Tear it down
 

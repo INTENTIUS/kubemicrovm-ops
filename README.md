@@ -23,7 +23,7 @@ Everything `./go` does is a command you could run yourself, in the order you wou
 ```bash
 kubectl -n microvm-demo get microvmimages,microvms
 just validate                 # did the estate converge, or merely apply
-just view                     # the whole estate in behold, both substrates
+just view                     # both substrates in one graph, coloured by drift
 just local-down
 ```
 
