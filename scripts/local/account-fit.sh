@@ -28,26 +28,30 @@ NS="${KMV_NAMESPACE:-microvm-demo}"
 # whatever your account was raised to.
 ACCOUNT_CEILING_MIB="${ACCOUNT_CEILING_MIB:-4096}"
 
-per_vm="$(kubectl -n "${NS}" get microvmimage \
-    -o jsonpath='{.items[0].status.memorySizeMiB}' 2>/dev/null)"
-if [ -z "${per_vm}" ]; then
-    echo "account fit: no MicroVMImage in ${NS}, nothing to size" >&2
+. "$(dirname "$0")/lib-estate.sh"
+
+# The image this tier's VMs reference — not `.items[0]`, which after a tier
+# change is the previous tier's leftover image. Reading the wrong one here does
+# not fail, it answers wrongly: 2048 x 2 = 4096 "fits", for an estate that
+# needs 8192 and does not.
+image="$(estate_image_name "${NS}")"
+if [ -z "${image}" ]; then
+    echo "account fit: nothing in ${NS} references an image, nothing to size" >&2
     exit 0
 fi
 
-# The replica floor if there is one, otherwise however many VMs are declared.
-replicas="$(kubectl -n "${NS}" get microvmreplicaset \
-    -o jsonpath='{.items[0].spec.replicas}' 2>/dev/null)"
-if [ -z "${replicas}" ]; then
-    replicas="$(kubectl -n "${NS}" get microvm --no-headers 2>/dev/null | grep -c .)"
+per_vm="$(kubectl -n "${NS}" get microvmimage "${image}" \
+    -o jsonpath='{.status.memorySizeMiB}' 2>/dev/null)"
+if [ -z "${per_vm}" ]; then
+    echo "account fit: ${image} reports no memorySizeMiB yet, nothing to size" >&2
+    exit 0
 fi
-[ -z "${replicas}" ] && replicas=1
-[ "${replicas}" -eq 0 ] 2>/dev/null && replicas=1
 
+replicas="$(estate_vm_count "${NS}")"
 needs=$((per_vm * replicas))
 
-printf 'account fit: %s MiB per VM x %s = %s MiB, against a %s MiB ceiling\n' \
-    "${per_vm}" "${replicas}" "${needs}" "${ACCOUNT_CEILING_MIB}"
+printf 'account fit: %s at %s MiB x %s = %s MiB, against a %s MiB ceiling\n' \
+    "${image}" "${per_vm}" "${replicas}" "${needs}" "${ACCOUNT_CEILING_MIB}"
 
 if [ "${needs}" -le "${ACCOUNT_CEILING_MIB}" ]; then
     echo "            fits"

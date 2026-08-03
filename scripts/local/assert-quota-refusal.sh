@@ -32,6 +32,7 @@ OPERATOR_NS="${NS_OPERATOR:-kube-microvm}"
 CEILING="${ACCOUNT_CEILING_MIB:-4096}"
 TIMEOUT="${TIMEOUT:-420}"
 ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
+. "$(dirname "$0")/lib-estate.sh"
 
 echo "==> the ${TIER} estate against a ${CEILING} MiB account ceiling"
 
@@ -68,21 +69,31 @@ echo "    waiting for the account ceiling to bind"
 deadline=$((SECONDS + TIMEOUT))
 saw_quota=""
 ready=""
-want="$(kubectl -n "${NS}" get microvmreplicaset -o jsonpath='{.items[0].spec.replicas}' 2>/dev/null)"
-[ -z "${want}" ] && want=1
+want="$(estate_vm_count "${NS}")"
+
+# Both patterns are exact strings that only a real refusal produces.
+#
+# An earlier version also accepted a bare "quota" or "Quota" anywhere in the
+# operator's log, and passed on it. That is not evidence: the operator ships a
+# QuotaDiscovery component whose class name alone satisfies the match, and it
+# logs at startup whether or not anything was ever refused. A check that cannot
+# fail is not a check, and this one is asserting the exact property — that the
+# refusal is *legible* — which a substring of a class name does not establish.
+OPERATOR_PATTERN='ServiceQuotaExceeded'
+M80_PATTERN='account memory ceiling reached'
 
 while [ "${SECONDS}" -lt "${deadline}" ]; do
     ready="$(kubectl -n "${NS}" get microvmreplicaset -o jsonpath='{.items[0].status.readyReplicas}' 2>/dev/null)"
     [ -z "${ready}" ] && ready=0
-    logs="$(kubectl -n "${OPERATOR_NS}" logs deploy/kube-microvm-operator --tail=400 2>/dev/null)"
-    case "${logs}" in
-        *ServiceQuotaExceeded*|*"quota"*|*"Quota"*) saw_quota="operator log" ;;
-    esac
-    m80logs="$(kubectl -n "${OPERATOR_NS}" logs deploy/m80 --tail=200 2>/dev/null)"
-    case "${m80logs}" in
-        *"account memory ceiling reached"*) saw_quota="m80 log" ;;
-    esac
-    [ -n "${saw_quota}" ] && break
+
+    evidence="$(kubectl -n "${OPERATOR_NS}" logs deploy/kube-microvm-operator --tail=400 2>/dev/null |
+        grep -m1 "${OPERATOR_PATTERN}")"
+    if [ -n "${evidence}" ]; then saw_quota="the operator's log"; break; fi
+
+    evidence="$(kubectl -n "${OPERATOR_NS}" logs deploy/m80 --tail=400 2>/dev/null |
+        grep -m1 "${M80_PATTERN}")"
+    if [ -n "${evidence}" ]; then saw_quota="m80's log"; break; fi
+
     sleep 10
 done
 
@@ -90,19 +101,26 @@ echo ""
 echo "    replica floor asked for ${want}, ready ${ready}"
 
 if [ -n "${saw_quota}" ]; then
-    echo "    the ceiling was named, in the ${saw_quota}"
-    kubectl -n "${OPERATOR_NS}" logs deploy/m80 --tail=200 2>/dev/null |
-        grep -i 'ceiling' | tail -3 | sed 's/^/        /'
+    echo "    the ceiling was named, in ${saw_quota}:"
+    printf '        %s\n' "${evidence}"
     echo ""
-    echo "==> the refusal is legible: something says quota, not just 'not ready'"
+    echo "==> the refusal is legible: something names the quota, not just 'not ready'"
     exit 0
 fi
 
 echo ""
 echo "    nothing named a quota within ${TIMEOUT}s." >&2
 echo "" >&2
+echo "    Looked for '${OPERATOR_PATTERN}' in the operator's log and" >&2
+echo "    '${M80_PATTERN}' in m80's, and found neither." >&2
+echo "" >&2
 echo "    This is the finding, not a broken check: an estate that cannot fit" >&2
-echo "    its account is failing silently, which is the expensive shape." >&2
+echo "    its account is failing silently, which is the expensive shape — and" >&2
+echo "    silence is what an adopter would get on a real account too." >&2
+echo "" >&2
+echo "  what m80 said about memory:" >&2
+kubectl -n "${OPERATOR_NS}" logs deploy/m80 --tail=400 2>/dev/null |
+    grep -iE 'memory|ceiling|quota|reject' | tail -10 | sed 's/^/    /' >&2 || true
 echo "" >&2
 kubectl -n "${NS}" get microvmimages,microvms,microvmreplicasets -o wide >&2 || true
 kubectl -n "${OPERATOR_NS}" logs deploy/kube-microvm-operator --tail=60 >&2 || true

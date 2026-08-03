@@ -30,6 +30,7 @@ PF_PORT="${PF_PORT:-14291}"
 TIMEOUT="${TIMEOUT:-300}"
 ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
 MANIFEST="${ROOT}/dist/workload-${TIER}.yaml"
+. "$(dirname "$0")/lib-estate.sh"
 
 fail() {
     echo "" >&2
@@ -120,11 +121,7 @@ echo "==> failure paths at tier ${TIER}"
 # there are two, and the first one is the wrong one. Arming the wrong lever
 # then watching the right image build successfully is a five minute wait ending
 # in a message that names neither. Ask what this tier's VMs actually reference.
-image="$(kubectl -n "${NS}" get microvmreplicaset \
-    -o jsonpath='{.items[0].spec.template.spec.imageRef}' 2>/dev/null)"
-if [ -z "${image}" ]; then
-    image="$(kubectl -n "${NS}" get microvm -o jsonpath='{.items[0].spec.imageRef}' 2>/dev/null)"
-fi
+image="$(estate_image_name "${NS}")"
 [ -n "${image}" ] || fail "nothing in ${NS} references an image — stand the tier up first"
 
 # The lever keys by the name m80 knows, which is the CR name the operator
