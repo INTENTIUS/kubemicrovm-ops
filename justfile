@@ -57,6 +57,13 @@ prod-local-e2e:
 prod-ha-local-e2e:
     bash scripts/local/local-up.sh prod-ha
 
+# Note: `./go` runs this and then stands the estate up, which is the one
+# command a fresh clone needs. This recipe is the check on its own.
+
+# Are the tools the local target needs installed.
+prereqs:
+    bash scripts/local/prereqs.sh
+
 # Note: a tier change against the cluster and floci already up, which is what
 # apply-estate.sh was split out of local-up.sh to make possible. The e2e
 # recipes above rebuild the cluster from nothing; this one does not. Applying

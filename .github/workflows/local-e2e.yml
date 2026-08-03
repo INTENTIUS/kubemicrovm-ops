@@ -54,19 +54,16 @@ jobs:
         with:
           node-version: '22'
 
-      # A reader installs k3d and just; docker, kubectl, helm and the AWS CLI
-      # are already on the runner, and local-up.sh's preflight checks all of
-      # them the way it would on a laptop that is missing one.
-      - name: install k3d and just
-        run: |
-          curl -sfL https://raw.githubusercontent.com/k3d-io/k3d/main/install.sh | bash
-          curl -sfL https://just.systems/install.sh | bash -s -- --to /usr/local/bin
-
-      # The quick start says `npm install`, so that is what runs here.
-      - run: npm install
-
-      - name: just minimal-local-e2e
-        run: just minimal-local-e2e
+      # The quick start's own lead-in: ./go installs whatever is missing and
+      # stands the estate up. --yes because a runner cannot answer a prompt,
+      # which is the only difference from what a reader runs.
+      #
+      # This is also the only thing that exercises the installers. A bootstrap
+      # nobody runs on a machine missing something is a bootstrap that works
+      # until the first person needs it; the runner has k3d and just missing,
+      # so both paths run here every time.
+      - name: ./go, the way the quick start says
+        run: ./go --yes
 
       - name: just validate
         run: just validate minimal

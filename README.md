@@ -9,11 +9,16 @@ The design documents are a Hugo site, published at [intentius.github.io/kubemicr
 ## Try it without an AWS account
 
 ```bash
-npm install
-just minimal-local-e2e
+git clone https://github.com/INTENTIUS/kubemicrovm-ops
+cd kubemicrovm-ops
+./go
 ```
 
-That brings up a k3d cluster, [floci](https://github.com/lex00/floci) for the AWS plane, [m80](https://github.com/INTENTIUS/m80) for the MicroVMs API, the real KubeMicroVM operator pointed at them, and this kit's estate at the `minimal` tier. Then:
+If you have Docker, that is the whole lead-in. `./go` checks the other tools, offers to install whichever are missing — asking first, and never installing Docker itself — then runs `npm install` and stands the estate up. About four minutes, and nothing in it costs anything.
+
+It brings up a k3d cluster, [floci](https://github.com/lex00/floci) for the AWS plane, [m80](https://github.com/INTENTIUS/m80) for the MicroVMs API, the real KubeMicroVM operator pointed at them, and this kit's estate at the `minimal` tier.
+
+Everything `./go` does is a command you could run yourself, in the order you would run them — `just prereqs`, `npm install`, `just minimal-local-e2e`. It is not a second way to do things. Then:
 
 ```bash
 kubectl -n microvm-demo get microvmimages,microvms
