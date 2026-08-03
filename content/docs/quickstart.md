@@ -51,6 +51,21 @@ kubectl -n microvm-demo get microvmimage -o jsonpath='{.items[0].status}' | jq
 }
 ```
 
+## When it does not do that
+
+Two commands, and the difference between them is worth knowing.
+
+```sh
+just doctor      # is each piece up and talking to the next
+just validate    # did the estate converge, as opposed to merely applying
+```
+
+`doctor` reports immediately and never waits. It walks floci, the cluster, m80, the operator and the estate in the order they depend on each other, and for whichever one is wrong it prints the command to run next. It also prints m80's version, which is the fastest way to tell a stale emulator apart from a broken one.
+
+`validate` waits, up to ten minutes, and is the harder question. Manifests that apply cleanly and are then refused by the service look identical to healthy ones until this fails — every one of the schema gaps on [Running the local target]({{< relref "local-target" >}}) presented that way. On failure it prints every resource and the operator's own reasoning.
+
+Both run against an estate that is already up, so neither stands anything up or tears anything down.
+
 ## Change tier
 
 ```sh

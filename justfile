@@ -57,6 +57,22 @@ prod-local-e2e:
 prod-ha-local-e2e:
     bash scripts/local/local-up.sh prod-ha
 
+# Note: answers "why is nothing happening" without standing anything up. It
+# walks the pieces in the order they depend on each other and names the command
+# to run about whichever one is wrong.
+
+# Is each piece of the local target up and talking to the next one.
+doctor:
+    bash scripts/local/doctor.sh
+
+# Note: waits, up to ten minutes. On failure it prints every resource and the
+# operator's own reasoning, which is what tells a schema gap the service
+# refused apart from a reconcile that is merely slow.
+
+# Did the estate converge, as opposed to merely applying.
+validate tier="":
+    bash scripts/local/assert-converged.sh {{tier}}
+
 # Tear the local target down: the teardown Op, then the cluster and floci.
 local-down:
     bash scripts/local/local-down.sh

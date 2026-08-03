@@ -17,11 +17,14 @@ That brings up a k3d cluster, [floci](https://github.com/lex00/floci) for the AW
 
 ```bash
 kubectl -n microvm-demo get microvmimages,microvms
+just validate                 # did the estate converge, not just apply
 just view                     # the whole estate in behold, both substrates
 just local-down
 ```
 
 Swap the tier for `prod` or `prod-ha` and the same command deploys a class, a VPC egress connector, and a replica set instead of a single VM.
+
+If any of that does not happen, `just doctor` walks floci, the cluster, m80, the operator and the estate in dependency order and prints the command to run about whichever one is wrong.
 
 ### What the local target cannot cover
 
