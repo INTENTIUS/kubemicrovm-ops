@@ -14,8 +14,12 @@ usage() {
   ./scripts/local/local-up.sh [minimal|prod|prod-ha]
 
 Overridable by environment variable: CLUSTER, NS, KMV_NAMESPACE, FLOCI_IMAGE,
-FLOCI_PORT, M80_IMAGE, M80_PORT, CHART_VERSION, AWS_REGION,
-MAX_ACCOUNT_MEMORY_MIB.
+FLOCI_CONTAINER, FLOCI_PORT, M80_IMAGE, M80_PORT, M80_ENABLE_INJECTION,
+CHART_VERSION, AWS_REGION, MAX_ACCOUNT_MEMORY_MIB, RECREATE_CLUSTER.
+
+A cluster that is already up is reused. RECREATE_CLUSTER=1 rebuilds it from
+nothing, which is what you want after changing m80's flags or when the estate
+has got into a state not worth reasoning about.
 
 Needs docker, k3d, kubectl, helm, the AWS CLI, node and npm. All of them are
 checked before anything is started. Uses no AWS account.
@@ -128,22 +132,61 @@ on_failure() {
 }
 trap on_failure EXIT
 
-echo "==> floci (the AWS plane) on :${FLOCI_PORT}"
-docker rm -f "${FLOCI_CONTAINER}" >/dev/null 2>&1 || true
-docker run -d --rm --name "${FLOCI_CONTAINER}" -p "${FLOCI_PORT}:4566" "${FLOCI_IMAGE}" >/dev/null
-created_floci=1
-for _ in $(seq 1 60); do
-    if curl -sf "${AWS_ENDPOINT_URL}/_localstack/health" >/dev/null 2>&1; then break; fi
-    sleep 1
-done
-curl -sf "${AWS_ENDPOINT_URL}/_localstack/health" >/dev/null || {
-    echo "floci did not come up on ${AWS_ENDPOINT_URL}" >&2; exit 1
-}
+# floci is reused on the same terms as the cluster below, and for the same
+# reason: a re-run should not disturb a healthy estate. Wiping it here would
+# take the CloudFormation stack with it while the operator is live, which is
+# recoverable — the install Op recreates it and every name is deterministic —
+# but it is churn nobody asked for, and it would make "reusing both together"
+# a claim this script does not honour.
+if [ "${RECREATE_CLUSTER:-0}" != "1" ] &&
+   docker ps --filter "name=^${FLOCI_CONTAINER}$" --format '{{.Names}}' 2>/dev/null | grep -qx "${FLOCI_CONTAINER}" &&
+   curl -sf "${AWS_ENDPOINT_URL}/_localstack/health" >/dev/null 2>&1; then
+    echo "==> floci already up on :${FLOCI_PORT}, reusing it"
+else
+    echo "==> floci (the AWS plane) on :${FLOCI_PORT}"
+    docker rm -f "${FLOCI_CONTAINER}" >/dev/null 2>&1 || true
+    docker run -d --rm --name "${FLOCI_CONTAINER}" -p "${FLOCI_PORT}:4566" "${FLOCI_IMAGE}" >/dev/null
+    created_floci=1
+    for _ in $(seq 1 60); do
+        if curl -sf "${AWS_ENDPOINT_URL}/_localstack/health" >/dev/null 2>&1; then break; fi
+        sleep 1
+    done
+    curl -sf "${AWS_ENDPOINT_URL}/_localstack/health" >/dev/null || {
+        echo "floci did not come up on ${AWS_ENDPOINT_URL}" >&2; exit 1
+    }
+fi
 
-echo "==> cluster ${CLUSTER}"
-k3d cluster delete "${CLUSTER}" >/dev/null 2>&1 || true
-k3d cluster create "${CLUSTER}" --agents 1 --wait --timeout 300s >/dev/null
-created_cluster=1
+# Reuse a cluster that is already there, rather than deleting it.
+#
+# This used to open with `k3d cluster delete`, which made the script safe to
+# re-run and unsafe to *call*. behold offers a substrate a "Bring up" button
+# wired to exactly this path (behold src/substrates.ts), so clicking it while
+# looking at a healthy estate tore the estate down and rebuilt it. behold's own
+# k3d demo documents its local-up.sh as "idempotent — reuses one already up",
+# which is the convention this was not following.
+#
+# Reuse is safe here because everything downstream is idempotent: helm upgrade
+# --install for the operator, kubectl apply for the CRs. What is not idempotent
+# is m80 — it is in-memory and reserves image names through the async delete
+# window, so a *fresh* estate against a *stale* m80 answers "already exists".
+# Reusing both together is consistent; reusing one is not. Since m80 lives in
+# the cluster, keeping the cluster keeps them in step.
+if k3d cluster list --no-headers 2>/dev/null | awk '{print $1}' | grep -qx "${CLUSTER}"; then
+    if [ "${RECREATE_CLUSTER:-0}" = "1" ]; then
+        echo "==> cluster ${CLUSTER} — rebuilding, RECREATE_CLUSTER=1"
+        k3d cluster delete "${CLUSTER}" >/dev/null 2>&1 || true
+        k3d cluster create "${CLUSTER}" --agents 1 --wait --timeout 300s >/dev/null
+        created_cluster=1
+    else
+        echo "==> cluster ${CLUSTER} already up, reusing it"
+        echo "    RECREATE_CLUSTER=1 to rebuild from nothing"
+        kubectl config use-context "k3d-${CLUSTER}" >/dev/null 2>&1 || true
+    fi
+else
+    echo "==> cluster ${CLUSTER}"
+    k3d cluster create "${CLUSTER}" --agents 1 --wait --timeout 300s >/dev/null
+    created_cluster=1
+fi
 
 # A locally built image is in no registry, so k3d cannot pull it. Importing is
 # what lets a contributor point the harness at their own build:
