@@ -51,10 +51,23 @@ behold holds no apply credentials. Its reads need describe and list only. For th
 
 `behold export` freezes the estate into a static, fully navigable snapshot deployable to any static host. Two uses for this kit. Design-time, an exported snapshot of the reference estate becomes a living diagram in these docs and in the upstream conversation with codriverlabs. Operationally, an export is a point-in-time record of an environment that reviewers can pan around without credentials.
 
+## Looking at it locally
+
+```sh
+./go            # stand the estate up
+just view       # open it in behold
+```
+
+This page used to say there was no emulator path for this estate, because when it was written no local emulator implemented the MicroVM API. [m80](https://github.com/INTENTIUS/m80) is that emulator, released and running in this repo's CI on every push, so the local loop it described as hypothetical is the one `./go` runs.
+
+`just view` uses `behold serve --env`, not `behold preview`. The difference matters here: preview stops after Docker and Floci — the substrates its Loom demo needs — and never detects k3d, so a KubeMicroVM estate previewed shows the AWS plane and none of the Kubernetes one. `serve --env` turns on the live overlay, which reads through `chant lifecycle diff --live` against the cluster `chant.config.ts` binds.
+
+That makes this the mixed-substrate case behold's own pitch describes and its two turnkey demos each show half of: the custom resources and the operator on k3d, the images, VMs and connectors on the AWS side, in one graph.
+
+**Drift you can cause on purpose.** The two planes can genuinely disagree, because the operator reconciles one against the other — and `just break-it` makes them disagree on demand, through m80's failure-injection levers. Against a real account you cannot ask a subnet to run out of addresses; here it is a POST. That is what makes the drift colouring demonstrable rather than something to wait for.
+
+Needs a behold checkout beside this one — behold is not published to npm, so there is no `npx` path. `BEHOLD_DIR` points at one elsewhere.
+
 ## What behold is not, here
 
-There is no emulator path for this estate yet. No local emulator implements the MicroVM API today, both Floci and LocalStack lack the surface, so behold's turnkey local-apply demos do not translate. Preview and export work offline against source, the live overlay needs a real cluster and account.
-
-A standalone MicroVM emulator changes this, and one is now in design ([m80](https://github.com/INTENTIUS/m80), mudflaps-style, docs-only so far). Both the operator and the `microvm` CLI reach AWS through the SDK, which takes an endpoint override, so m80 plus k3d gives the kit a full local loop and behold its apply demo. The CloudFormation side follows separately in floci. See the [Roadmap]({{< relref "roadmap" >}})'s resolved section.
-
-behold is also not a data-plane tool. Getting a token, execing into a VM, and tailing image build logs stay with the `microvm` CLI. The boundary is the same one the kit draws everywhere. Estate shape, drift, and deployment belong to chant and behold. The running VM belongs to the operator and its CLI.
+behold is not a data-plane tool. Getting a token, execing into a VM, and tailing image build logs stay with the `microvm` CLI. The boundary is the same one the kit draws everywhere. Estate shape, drift, and deployment belong to chant and behold. The running VM belongs to the operator and its CLI.

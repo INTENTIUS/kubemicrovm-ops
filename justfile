@@ -154,12 +154,23 @@ prod-ha-live-e2e:
 
 # ── Viewing ──────────────────────────────────────────────────────────────
 
-# Note: serves at http://localhost:4600, with the tier picker switching
-# between the three profiles. Needs a behold checkout, `../behold` by default
-# and BEHOLD_DIR otherwise — the quick start does not create one, so a reader
-# who followed it reaches this recipe without the thing it needs.
+# Note: serves at http://localhost:4600. Needs a behold checkout, `../behold`
+# by default and BEHOLD_DIR otherwise — the quick start does not create one, so
+# a reader who followed it reaches this recipe without the thing it needs.
+#
+# `serve --env`, not `preview`. behold's preview returns before it detects k3d
+# — "the Loom demo only needs Docker + Floci, so the CI/forge and k3d
+# substrates are out of scope" (behold src/substrates.ts) — so previewing this
+# kit shows the AWS plane and none of the Kubernetes one, which is the half a
+# KubeMicroVM estate is most interesting for. --env is what turns on the live
+# drift overlay, and it reads through `chant lifecycle diff --live`, bound to
+# the cluster chant.config.ts names.
+#
+# Not --local: that boots the served project's own local substrates, and this
+# kit's local-up.sh deletes the cluster before creating it. Stand the estate up
+# first, then look at it.
 
-# Open the estate in behold — both substrates in one graph.
+# Open the estate in behold — both substrates in one graph, coloured by drift.
 view:
     #!/usr/bin/env bash
     set -euo pipefail
@@ -178,4 +189,4 @@ view:
         echo "The estate is fine without it — this is a way to look, not a step." >&2
         exit 1
     fi
-    cd "${behold}" && npm run dev -- preview "${kit}"
+    cd "${behold}" && npm run dev -- serve "${kit}" --env "${KMV_ENV:-dev}"

@@ -32,8 +32,8 @@ if curl -sf "http://localhost:${FLOCI_PORT}/_localstack/health" >/dev/null 2>&1;
     ok "floci answering on :${FLOCI_PORT}"
 else
     bad "floci not answering on :${FLOCI_PORT}"
-    if docker ps -a --filter name=floci-kmv --format '{{.Status}}' 2>/dev/null | grep -q .; then
-        next "docker logs floci-kmv"
+    if docker ps -a --filter "name=^${FLOCI_CONTAINER:-floci}$" --format '{{.Status}}' 2>/dev/null | grep -q .; then
+        next "docker logs ${FLOCI_CONTAINER:-floci}"
     else
         next "just minimal-local-e2e    # nothing is up yet"
     fi

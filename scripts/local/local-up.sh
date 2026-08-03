@@ -39,6 +39,13 @@ KMV_NAMESPACE="${KMV_NAMESPACE:-microvm-demo}"
 # security group rules and tags are dropped there, and that fork fixes them.
 FLOCI_IMAGE="${FLOCI_IMAGE:-floci/floci:latest}"
 FLOCI_PORT="${FLOCI_PORT:-4566}"
+# `floci`, not `floci-kmv`. behold detects the Floci substrate with
+# `docker ps --filter name=^floci$`, anchored — so a suffixed name is reported
+# as "not running" while it is running, and the substrate pill offers to boot a
+# container that is already there. The suffix was this kit's invention and the
+# bare name is the convention, so the kit moves. FLOCI_CONTAINER renames it if
+# something else on the machine already owns `floci`.
+FLOCI_CONTAINER="${FLOCI_CONTAINER:-floci}"
 # Pinned rather than :latest, and v0.4.0 or newer is required: the args below
 # pass -serve-sts and -enable-injection, and an m80 that does not know a flag
 # exits rather than ignoring it — so an older tag does not degrade, it
@@ -112,7 +119,7 @@ on_failure() {
             echo "  k3d cluster ${CLUSTER}" >&2
         fi
         if [ "${created_floci}" -eq 1 ]; then
-            echo "  docker container floci-kmv" >&2
+            echo "  docker container ${FLOCI_CONTAINER}" >&2
         fi
         echo "" >&2
         echo "  just local-down   # removes both" >&2
@@ -122,8 +129,8 @@ on_failure() {
 trap on_failure EXIT
 
 echo "==> floci (the AWS plane) on :${FLOCI_PORT}"
-docker rm -f floci-kmv >/dev/null 2>&1 || true
-docker run -d --rm --name floci-kmv -p "${FLOCI_PORT}:4566" "${FLOCI_IMAGE}" >/dev/null
+docker rm -f "${FLOCI_CONTAINER}" >/dev/null 2>&1 || true
+docker run -d --rm --name "${FLOCI_CONTAINER}" -p "${FLOCI_PORT}:4566" "${FLOCI_IMAGE}" >/dev/null
 created_floci=1
 for _ in $(seq 1 60); do
     if curl -sf "${AWS_ENDPOINT_URL}/_localstack/health" >/dev/null 2>&1; then break; fi
