@@ -36,6 +36,16 @@ fail() {
     echo "failure-path check failed at tier ${TIER}: $1" >&2
     echo "" >&2
     kubectl -n "${NS}" get microvmimages,microvms,microvmnetworks -o wide >&2 || true
+    # -o wide shows NAME and AGE and nothing else, since none of these CRDs
+    # declares printer columns. The status blocks are the whole point of
+    # looking, so print them rather than a table that cannot carry them.
+    echo "" >&2
+    echo "status blocks:" >&2
+    for kind in microvmimage microvmnetwork microvmreplicaset; do
+        kubectl -n "${NS}" get "${kind}" \
+            -o "jsonpath={range .items[*]}${kind}/{.metadata.name}: {.status}{\"\n\"}{end}" 2>/dev/null >&2 || true
+    done
+    echo "" >&2
     kubectl -n "${OPERATOR_NS}" logs deploy/kube-microvm-operator --tail=60 >&2 || true
     exit 1
 }
@@ -169,7 +179,29 @@ else
     [ -n "${network}" ] || fail "no MicroVMNetwork in ${NS} at tier ${TIER}"
 
     code="${REASON_CODE:-SubnetOutOfIPAddresses}"
-    kubectl -n "${NS}" delete microvmnetwork "${network}" --timeout=120s >/dev/null 2>&1 || true
+
+    # The VMs go first, and this is not the same clearing the build stage did:
+    # re-applying the manifest there brought the replica set and its VMs back,
+    # and a MicroVM referencing this connector holds its deletion open. The
+    # first version of this deleted the network with VMs live, swallowed the
+    # error, and then waited five minutes for a state change on a CR that had
+    # never been recreated — nine minutes old at the point it gave up.
+    kubectl -n "${NS}" delete microvmreplicaset --all --timeout=120s >/dev/null 2>&1 || true
+    kubectl -n "${NS}" delete microvm --all --timeout=120s >/dev/null 2>&1 || true
+
+    if ! kubectl -n "${NS}" delete microvmnetwork "${network}" --timeout=180s >/dev/null 2>&1; then
+        fail "MicroVMNetwork ${network} would not delete, so the connector lever cannot arm.
+    A MicroVM still referencing it is the usual cause, and a finalizer that
+    outlives the reference is the other."
+    fi
+    for _ in $(seq 1 24); do
+        kubectl -n "${NS}" get microvmnetwork "${network}" >/dev/null 2>&1 || break
+        sleep 5
+    done
+    if kubectl -n "${NS}" get microvmnetwork "${network}" >/dev/null 2>&1; then
+        fail "MicroVMNetwork ${network} is still present after a successful delete call"
+    fi
+
     arm "{\"target\":\"connector\",\"name\":\"${network}\",\"reasonCode\":\"${code}\"}"
     kubectl apply -f "${MANIFEST}" >/dev/null
 
