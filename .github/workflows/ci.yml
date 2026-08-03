@@ -32,6 +32,16 @@ jobs:
       - name: test
         run: npm test
 
+      # `just` rejects a justfile as a whole rather than the recipe at fault,
+      # so a duplicate name takes every recipe down with it — including the
+      # `just minimal-local-e2e` the README opens with. Nothing caught that,
+      # because every workflow calls the scripts directly and none of them
+      # goes through just. Listing parses the file, which is the check.
+      - name: the justfile parses
+        run: |
+          curl -sfL https://just.systems/install.sh | bash -s -- --to /usr/local/bin
+          just --list
+
   # A broken `relref` is a build failure rather than a bad link, so building
   # the site gates a class of mistake nothing else here catches. The deploy
   # lives in docs.yml, which only runs on main.
