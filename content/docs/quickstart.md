@@ -38,6 +38,8 @@ operator: AWS connectivity confirmed: account=000000000000 arn=arn:aws:iam::0000
 kubectl -n microvm-demo get microvmimages,microvms
 ```
 
+That lists them and nothing more — none of KubeMicroVM's CRDs declares printer columns, so `kubectl get` shows NAME and AGE and no state at all. `just doctor` prints each kind with the status field that matters, and for one resource in full:
+
 The image goes to `SUCCESSFUL` and the VM to `Running`:
 
 ```sh
@@ -89,21 +91,23 @@ That deletes the k3d cluster and builds everything again, taking about as long a
 Same source either way. `prod-ha` declares a `MicroVMClass` carrying the idle policy, a `MicroVMNetwork` across two subnets, and a `MicroVMReplicaSet` with a floor of two instead of the single `MicroVM`:
 
 ```
-NAME                                     STATE
-microvm.../kmv-dev-a-vm-fkmqw            Running
-microvm.../kmv-dev-a-vm-pg4lk            Running
-
-microvmclass.../kmv-dev-a-class     Adoptable multi-AZ deployment...   900   true
-microvmnetwork.../kmv-dev-a-network                                    ACTIVE
+$ just doctor
+        microvm           kmv-dev-a-vm-fkmqw     Running
+        microvm           kmv-dev-a-vm-pg4lk     Running
+        microvmnetwork    kmv-dev-a-network      ACTIVE
+        microvmreplicaset kmv-dev-a-replicas     2
 ```
 
 ## Look at it
 
+Optional, and the only step here that needs a second repository:
+
 ```sh
+git clone https://github.com/INTENTIUS/behold ../behold
 just view
 ```
 
-Opens [behold](https://github.com/INTENTIUS/behold) on the project: both planes in one graph, the AWS roles and buckets next to the custom resources they are referenced by. See [Operating with behold]({{< relref "behold" >}}).
+Opens [behold](https://github.com/INTENTIUS/behold) on the project: both planes in one graph, the AWS roles and buckets next to the custom resources they are referenced by. It looks for a checkout at `../behold`, or wherever `BEHOLD_DIR` points, and says so rather than failing obscurely if there is none. See [Operating with behold]({{< relref "behold" >}}).
 
 ## Tear it down
 
