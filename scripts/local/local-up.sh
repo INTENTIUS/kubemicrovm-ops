@@ -17,7 +17,8 @@ Overridable by environment variable: CLUSTER, NS, KMV_NAMESPACE, FLOCI_IMAGE,
 FLOCI_PORT, M80_IMAGE, M80_PORT, CHART_VERSION, AWS_REGION,
 MAX_ACCOUNT_MEMORY_MIB.
 
-Needs docker, k3d, kubectl, helm and the AWS CLI. Uses no AWS account.
+Needs docker, k3d, kubectl, helm, the AWS CLI, node and npm. All of them are
+checked before anything is started. Uses no AWS account.
 USAGE
 }
 
@@ -59,9 +60,56 @@ export AWS_SECRET_ACCESS_KEY="${AWS_SECRET_ACCESS_KEY:-test}"
 export AWS_REGION
 export KMV_TIER="${TIER}"
 
+# Everything this needs, checked before anything is started. All of them at
+# once rather than the first one missing, so a reader installs once instead of
+# discovering the list an error at a time. node and npm were never in the
+# documented prerequisites and the install Op is `npx chant run`, so a machine
+# with docker and k3d and nothing else got past every stated requirement and
+# failed in phase one.
+missing=""
+for cmd in docker k3d kubectl helm aws node npm; do
+    command -v "${cmd}" >/dev/null 2>&1 || missing="${missing} ${cmd}"
+done
+if [ -n "${missing}" ]; then
+    echo "missing:${missing}" >&2
+    echo "" >&2
+    echo "The local target needs docker, k3d, kubectl, helm, the AWS CLI, node and npm." >&2
+    exit 1
+fi
+# Installed and not running is the common case on macOS, and it is a different
+# message than the binary being absent.
+if ! docker info >/dev/null 2>&1; then
+    echo "docker is installed but not responding — is the daemon running?" >&2
+    exit 1
+fi
+
+# From here on things exist that did not before. On any failure, say what is
+# still running rather than leaving a cluster and a container behind silently.
+created_floci=0
+created_cluster=0
+on_failure() {
+    status=$?
+    if [ "${status}" -ne 0 ] &&
+       { [ "${created_floci}" -eq 1 ] || [ "${created_cluster}" -eq 1 ]; }; then
+        echo "" >&2
+        echo "this left running:" >&2
+        if [ "${created_cluster}" -eq 1 ]; then
+            echo "  k3d cluster ${CLUSTER}" >&2
+        fi
+        if [ "${created_floci}" -eq 1 ]; then
+            echo "  docker container floci-kmv" >&2
+        fi
+        echo "" >&2
+        echo "  just local-down   # removes both" >&2
+    fi
+    exit "${status}"
+}
+trap on_failure EXIT
+
 echo "==> floci (the AWS plane) on :${FLOCI_PORT}"
 docker rm -f floci-kmv >/dev/null 2>&1 || true
 docker run -d --rm --name floci-kmv -p "${FLOCI_PORT}:4566" "${FLOCI_IMAGE}" >/dev/null
+created_floci=1
 for _ in $(seq 1 60); do
     if curl -sf "${AWS_ENDPOINT_URL}/_localstack/health" >/dev/null 2>&1; then break; fi
     sleep 1
@@ -73,6 +121,7 @@ curl -sf "${AWS_ENDPOINT_URL}/_localstack/health" >/dev/null || {
 echo "==> cluster ${CLUSTER}"
 k3d cluster delete "${CLUSTER}" >/dev/null 2>&1 || true
 k3d cluster create "${CLUSTER}" --agents 1 --wait --timeout 300s >/dev/null
+created_cluster=1
 
 # A locally built image is in no registry, so k3d cannot pull it. Importing is
 # what lets a contributor point the harness at their own build:

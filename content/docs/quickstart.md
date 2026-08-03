@@ -5,7 +5,9 @@ weight: 5
 
 # Quick start
 
-From nothing to a running MicroVM on a laptop, with no AWS account and nothing to pay for. Needs Docker, k3d, kubectl, helm, the AWS CLI and `just`.
+From nothing to a running MicroVM on a laptop, with no AWS account and nothing to pay for. Needs Docker, k3d, kubectl, helm, the AWS CLI, node, npm and `just`.
+
+Everything except `just` is checked before anything starts, and all of it at once — so a machine that is missing three of them says so in one go rather than three runs apart.
 
 ```sh
 git clone https://github.com/INTENTIUS/kubemicrovm-ops
