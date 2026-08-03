@@ -43,7 +43,7 @@ jobs:
       # it as the repo being broken rather than the docs being stale.
       - name: the justfile parses, and the docs only name recipes that exist
         run: |
-          curl -sfL https://just.systems/install.sh | bash -s -- --to /usr/local/bin
+          bash scripts/install-just.sh
           just --list
           bash scripts/docs-commands-exist.sh
 

@@ -124,7 +124,7 @@ install_one() {
     # they are the ones their own docs tell you to use.
     case "${cmd}" in
         k3d)     curl -sfL https://raw.githubusercontent.com/k3d-io/k3d/main/install.sh | bash ;;
-        just)    curl -sfL https://just.systems/install.sh | bash -s -- --to /usr/local/bin ;;
+        just)    bash "$(dirname "$0")/../install-just.sh" ;;
         helm)    curl -sfL https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3 | bash ;;
         kubectl)
             ver="$(curl -sfL https://dl.k8s.io/release/stable.txt)"
