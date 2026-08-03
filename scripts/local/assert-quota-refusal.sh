@@ -59,8 +59,39 @@ echo "    m80 restarted at -max-account-memory-mib ${CEILING}"
 
 # m80 is stateful per run and this restart emptied it, so the estate has to be
 # rebuilt from nothing against the new ceiling.
-kubectl -n "${NS}" delete microvmreplicaset,microvm,microvmimage --all --timeout=180s >/dev/null 2>&1 || true
+#
+# Every kind, and microvmnetwork is the one that matters: a MicroVMNetwork CR
+# keeps status.connectorArn, and after the restart that ARN names a connector
+# the fresh m80 has never heard of. The operator then loops on
+# ResourceNotFoundException and the estate never gets as far as running a VM —
+# so the replica floor sits at 0 for a reason that has nothing to do with
+# memory, and this check reads it as "the quota refusal was not legible". It
+# did exactly that, and the finding was wrong.
+kubectl -n "${NS}" delete microvmreplicaset,microvm,microvmimage,microvmnetwork,microvmclass \
+    --all --timeout=180s >/dev/null 2>&1 || true
 kubectl apply -f "${ROOT}/dist/workload-${TIER}.yaml" >/dev/null
+
+# The connector has to come back before anything can be concluded about memory.
+# Without this the check cannot tell "the quota bound silently" apart from
+# "something else broke first", and those want opposite responses.
+echo "    waiting for the connector, which has to work before memory can bind"
+conn_deadline=$((SECONDS + 240))
+conn_ok=""
+while [ "${SECONDS}" -lt "${conn_deadline}" ]; do
+    case "$(kubectl -n "${NS}" get microvmnetwork -o jsonpath='{.items[*].status.connectorState}' 2>/dev/null)" in
+        *ACTIVE*) conn_ok=1; break ;;
+    esac
+    sleep 5
+done
+if [ -z "${conn_ok}" ]; then
+    echo "" >&2
+    echo "    the connector never came back, so nothing can be said about the quota." >&2
+    echo "    This is a broken precondition, not a finding about memory." >&2
+    kubectl -n "${NS}" get microvmnetwork -o jsonpath='{range .items[*]}{.metadata.name}: {.status}{"\n"}{end}' >&2 2>/dev/null || true
+    kubectl -n "${OPERATOR_NS}" logs deploy/kube-microvm-operator --tail=30 >&2 2>/dev/null || true
+    exit 1
+fi
+echo "    connector ACTIVE"
 
 echo "    waiting for the account ceiling to bind"
 
