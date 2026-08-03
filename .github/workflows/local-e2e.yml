@@ -91,20 +91,22 @@ jobs:
       - name: just validate prod-ha
         run: just validate prod-ha
 
-      # `just break-it prod-ha` belongs here — last, because it deliberately
-      # breaks the estate, and at prod-ha because that is the tier declaring a
-      # connector, so one run covers both the failed build and the failed
-      # connector.
+      # Deliberately destructive, so it comes after everything that needs a
+      # working estate. prod-ha is the tier declaring a connector, so one run
+      # covers both the failed build and the failed connector.
       #
-      # It cannot run yet. The levers need -enable-injection, which landed on
-      # m80 main seven hours after v0.3.0 was tagged, so no published image has
-      # it (m80#74). Building m80 from source here is what #23 was about
-      # removing, and it is not worth reintroducing to reach one step.
-      #
-      # Turn this on when a release carries the flag; nothing else changes.
-      #
-      #   - name: just break-it prod-ha
-      #     run: just break-it prod-ha
+      # This was committed commented out until m80 v0.4.0 carried
+      # -enable-injection (m80#74). It runs now.
+      - name: just break-it prod-ha
+        run: just break-it prod-ha
+
+      # The cost check, and the last thing because it rebuilds the estate
+      # against a 4096 MiB ceiling that prod-ha cannot fit in. That is the
+      # point: a fresh AWS account is capped there, prod-ha asks for 8192, and
+      # the refusal has to be legible rather than look like a hang. Everything
+      # above this ran against the 262144 the harness normally raises it to.
+      - name: just quota-refusal prod-ha
+        run: just quota-refusal prod-ha
 
       - name: what the operator saw
         if: always()
