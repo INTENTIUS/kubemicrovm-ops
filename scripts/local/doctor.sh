@@ -122,12 +122,26 @@ else
 fi
 
 # ── estate ───────────────────────────────────────────────────────────────
+# None of KubeMicroVM's five CRDs declares additionalPrinterColumns, so a plain
+# `kubectl get microvm` prints NAME and AGE and nothing else — the state, which
+# is the only thing anyone is looking for, is not in the default output. Each
+# kind is asked for its own status field by name instead.
 estate="$(kubectl -n "${KMV_NAMESPACE}" get microvmimages,microvms,microvmreplicasets,microvmnetworks \
     --no-headers 2>/dev/null)"
 if [ -n "${estate}" ]; then
     ok "estate in ${KMV_NAMESPACE}: $(printf '%s\n' "${estate}" | grep -c .) resource(s)"
-    kubectl -n "${KMV_NAMESPACE}" get microvmimages,microvms,microvmreplicasets,microvmnetworks 2>/dev/null |
-        sed 's/^/        /'
+    # kind:status-field pairs, matching what assert-converged.sh waits on.
+    for pair in microvmimage:latestVersionState microvm:state \
+                microvmnetwork:connectorState microvmreplicaset:readyReplicas; do
+        kind="${pair%%:*}"
+        field="${pair##*:}"
+        kubectl -n "${KMV_NAMESPACE}" get "${kind}" \
+            -o "custom-columns=NAME:.metadata.name,$(printf '%s' "${field}" |
+                tr '[:lower:]' '[:upper:]'):.status.${field}" \
+            --no-headers 2>/dev/null |
+            grep -v '^$' |
+            sed "s/^/        ${kind}  /" || true
+    done
 else
     bad "no custom resources in namespace ${KMV_NAMESPACE}"
     next "just minimal-local-e2e    # or KMV_TIER=prod-ha just install"
