@@ -12,6 +12,6 @@
     "forceConsistentCasingInFileNames": true,
     "resolveJsonModule": true
   },
-  "include": ["src/**/*.ts", "chant.config.ts", "test/**/*.ts"],
+  "include": ["src/**/*.ts", "chant.config.ts", "test/**/*.ts", ".chant/**/*.ts"],
   "exclude": ["node_modules", "dist", "themes"]
 }
