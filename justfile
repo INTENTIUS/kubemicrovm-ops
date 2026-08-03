@@ -83,6 +83,14 @@ doctor:
 validate tier="":
     bash scripts/local/assert-converged.sh {{tier}}
 
+# Note: destructive to the estate on purpose — it deletes and recreates the
+# image, and the network at the production tiers, so the armed lever bites. Run
+# it against a stack you are willing to disturb, then `just apply-tier` back.
+
+# Break the estate deliberately and check it reports what broke.
+break-it tier="":
+    bash scripts/local/assert-failure-paths.sh {{tier}}
+
 # Tear the local target down: the teardown Op, then the cluster and floci.
 local-down:
     bash scripts/local/local-down.sh

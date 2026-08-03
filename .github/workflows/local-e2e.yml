@@ -91,6 +91,15 @@ jobs:
       - name: just validate prod-ha
         run: just validate prod-ha
 
+      # Last, because it deliberately breaks the estate. Everything above this
+      # point tests that things work; this is the only step that tests what
+      # happens when they do not, which is the half an adopter cannot rehearse
+      # on a real account — you cannot ask EC2 to run a subnet out of
+      # addresses. prod-ha is the tier that declares a connector, so running it
+      # here covers both the failed build and the failed connector.
+      - name: just break-it prod-ha
+        run: just break-it prod-ha
+
       - name: what the operator saw
         if: always()
         run: |

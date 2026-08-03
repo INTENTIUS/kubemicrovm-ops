@@ -50,6 +50,18 @@ AWS_REGION="${AWS_REGION:-us-east-1}"
 # A prod-ha deployment at 4096 MiB per VM is two VMs and nothing left over, so
 # the harness raises it the way a real account used for this would have been.
 MAX_ACCOUNT_MEMORY_MIB="${MAX_ACCOUNT_MEMORY_MIB:-262144}"
+# m80's failure-injection levers, which is how a failed image build or a
+# connector failure code can be caused on purpose. Off in m80 by default and
+# deliberately so — nothing under /_m80/ is signed, so anything that reaches
+# the port can arm them. On here, because this cluster is a throwaway k3d on a
+# laptop and provoking a failure is the point of having an emulator at all.
+# M80_ENABLE_INJECTION=0 turns it back off.
+M80_ENABLE_INJECTION="${M80_ENABLE_INJECTION:-1}"
+if [ "${M80_ENABLE_INJECTION}" = "1" ]; then
+    INJECT_ARG=', "-enable-injection"'
+else
+    INJECT_ARG=""
+fi
 
 STACK_NAME="${STACK_NAME:-kubemicrovm-ops-aws-plane}"
 ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
@@ -147,7 +159,7 @@ spec:
       containers:
         - name: m80
           image: ${M80_IMAGE}
-          args: ["-addr", ":${M80_PORT}", "-build-delay", "500ms", "-max-account-memory-mib", "${MAX_ACCOUNT_MEMORY_MIB}", "-serve-sts"]
+          args: ["-addr", ":${M80_PORT}", "-build-delay", "500ms", "-max-account-memory-mib", "${MAX_ACCOUNT_MEMORY_MIB}", "-serve-sts"${INJECT_ARG}]
           ports: [{ containerPort: ${M80_PORT} }]
           readinessProbe:
             httpGet: { path: /_m80/health, port: ${M80_PORT} }

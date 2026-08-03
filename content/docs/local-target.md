@@ -65,6 +65,26 @@ kubectl -n kube-microvm set env deploy/kube-microvm-operator \
 
 The chart templates only the `app.envs` keys it knows, so anything else is dropped silently — [KubeMicroVM#52](https://github.com/codriverlabs/KubeMicroVM/issues/52). And the operator's startup gate calls `sts:GetCallerIdentity` with no endpoint override of its own, so without `AWS_ENDPOINT_URL_STS` pointed back at m80 the health check reports `awsConnectivity: false` forever, readiness never passes, and every custom resource create fails with `no endpoints available` — [KubeMicroVM#50](https://github.com/codriverlabs/KubeMicroVM/issues/50). Both maintainer replies say a fix is intended; when they land, these two lines go.
 
+## Breaking it on purpose
+
+Everything above tests that things work. The other half — what the estate does when a build fails or a connector cannot be created — is the half nobody can rehearse on a real account, because you cannot ask EC2 to run a subnet out of addresses and you cannot ask CodeBuild to fail on request.
+
+Against m80 you can. It ships failure-injection levers, and since [m80#56](https://github.com/INTENTIUS/m80/issues/56) they have an HTTP surface rather than being reachable only from Go:
+
+```sh
+just break-it prod-ha
+```
+
+That deletes the image, arms `{"target":"build","name":"<image>"}`, re-applies, and asserts the `MicroVMImage` reaches `FAILED` rather than sitting in `CREATING` until something times out. At the production tiers it then does the same to the `MicroVMNetwork` with a reason code, and asserts the code comes back on `status.stateReasonCode`.
+
+The levers are keyed by resource name and arm *before* the resource exists — "the next build of this image fails" — which is why the check deletes and recreates rather than poking a live resource.
+
+It is destructive to the estate on purpose. `just apply-tier <tier>` puts it back.
+
+`local-up.sh` starts m80 with `-enable-injection` for this. m80 leaves it off by default and is right to: nothing under `/_m80/` is signed, so anything that can reach the port can arm a failure. On a throwaway k3d cluster that is a reasonable trade, and `M80_ENABLE_INJECTION=0` declines it.
+
+The seven reason codes are the service model's own: `SubnetOutOfIPAddresses` is the default here, and `REASON_CODE` picks another.
+
 ## Quotas
 
 m80 defaults to the account memory ceiling a fresh AWS account has, 4096 MiB. At `prod-ha`'s 4096 MiB per VM that is one VM and nothing left over, so the script raises it the way a real account used for this would have been. Override with `MAX_ACCOUNT_MEMORY_MIB`.
