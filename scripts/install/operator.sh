@@ -6,6 +6,7 @@
 # the invocations. Idempotent — safe against a cluster that already has any
 # part of it.
 set -euo pipefail
+. "$(dirname "$0")/../lib-kube.sh"
 
 # Pinned by the chart, not chosen here: every template in
 # kube-microvm-operator 1.0.11 hardcodes `namespace: kube-microvm` and ignores

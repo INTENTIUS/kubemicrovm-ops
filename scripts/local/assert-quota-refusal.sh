@@ -19,6 +19,11 @@
 #
 # Written for bash 3.2, which is what macOS ships.
 set -uo pipefail
+. "$(dirname "$0")/../lib-kube.sh"
+# Local-target scripts know their own cluster. The install scripts under
+# scripts/install/ deliberately do not default this: they are shared with the
+# live target, where a k3d context would be the wrong cluster entirely.
+KMV_KUBE_CONTEXT="${KMV_KUBE_CONTEXT:-k3d-${CLUSTER:-kubemicrovm-local}}"
 
 TIER="${1:-prod-ha}"
 case "${TIER}" in

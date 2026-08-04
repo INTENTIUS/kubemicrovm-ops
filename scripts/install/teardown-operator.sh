@@ -3,6 +3,7 @@
 # cluster-wide dependency this kit did not necessarily install, and removing
 # something another workload may rely on is not teardown, it is damage.
 set -euo pipefail
+. "$(dirname "$0")/../lib-kube.sh"
 
 NS="${NS:-kube-microvm}"
 
