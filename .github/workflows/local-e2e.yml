@@ -78,8 +78,6 @@ jobs:
           printf '%s\n' "$out"
           printf '%s' "$out" | grep -q 'cluster .* already up, reusing it' || {
             echo "second run did not reuse the cluster" >&2; exit 1; }
-          printf '%s' "$out" | grep -q 'floci already up' || {
-            echo "second run did not reuse floci" >&2; exit 1; }
 
       - name: and the estate still converges
         run: just validate minimal

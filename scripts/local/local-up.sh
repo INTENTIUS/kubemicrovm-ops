@@ -132,29 +132,36 @@ on_failure() {
 }
 trap on_failure EXIT
 
-# floci is reused on the same terms as the cluster below, and for the same
-# reason: a re-run should not disturb a healthy estate. Wiping it here would
-# take the CloudFormation stack with it while the operator is live, which is
-# recoverable — the install Op recreates it and every name is deterministic —
-# but it is churn nobody asked for, and it would make "reusing both together"
-# a claim this script does not honour.
-if [ "${RECREATE_CLUSTER:-0}" != "1" ] &&
-   docker ps --filter "name=^${FLOCI_CONTAINER}$" --format '{{.Names}}' 2>/dev/null | grep -qx "${FLOCI_CONTAINER}" &&
-   curl -sf "${AWS_ENDPOINT_URL}/_localstack/health" >/dev/null 2>&1; then
-    echo "==> floci already up on :${FLOCI_PORT}, reusing it"
-else
-    echo "==> floci (the AWS plane) on :${FLOCI_PORT}"
-    docker rm -f "${FLOCI_CONTAINER}" >/dev/null 2>&1 || true
-    docker run -d --rm --name "${FLOCI_CONTAINER}" -p "${FLOCI_PORT}:4566" "${FLOCI_IMAGE}" >/dev/null
-    created_floci=1
-    for _ in $(seq 1 60); do
-        if curl -sf "${AWS_ENDPOINT_URL}/_localstack/health" >/dev/null 2>&1; then break; fi
-        sleep 1
-    done
-    curl -sf "${AWS_ENDPOINT_URL}/_localstack/health" >/dev/null || {
-        echo "floci did not come up on ${AWS_ENDPOINT_URL}" >&2; exit 1
-    }
-fi
+# floci is replaced on every run, and the cluster below is not. That asymmetry
+# is the opposite of what it looks like it should be, so it is worth the words.
+#
+# The first cut of this reused both, reasoning that reusing one plane and
+# replacing the other was incoherent. CI disagreed: the second run failed with
+#
+#   An error occurred (UnknownAction) when calling the GetTemplateSummary
+#   operation: Action GetTemplateSummary is not supported.
+#
+# `aws cloudformation deploy` calls GetTemplateSummary to resolve parameters and
+# capabilities, and floci does not implement it (#45). It works against a stack
+# that does not exist and fails against one that does — so a *fresh* floci is
+# what keeps the AWS plane on the create path.
+#
+# Recreating it is cheap and safe: every name the stack produces is
+# deterministic, so the roles and bucket the operator references come back
+# identical. The estate that matters — the cluster, the operator, the custom
+# resources, and m80's in-memory state — survives, which is what behold's Bring
+# up button was destroying.
+echo "==> floci (the AWS plane) on :${FLOCI_PORT}"
+docker rm -f "${FLOCI_CONTAINER}" >/dev/null 2>&1 || true
+docker run -d --rm --name "${FLOCI_CONTAINER}" -p "${FLOCI_PORT}:4566" "${FLOCI_IMAGE}" >/dev/null
+created_floci=1
+for _ in $(seq 1 60); do
+    if curl -sf "${AWS_ENDPOINT_URL}/_localstack/health" >/dev/null 2>&1; then break; fi
+    sleep 1
+done
+curl -sf "${AWS_ENDPOINT_URL}/_localstack/health" >/dev/null || {
+    echo "floci did not come up on ${AWS_ENDPOINT_URL}" >&2; exit 1
+}
 
 # Reuse a cluster that is already there, rather than deleting it.
 #
