@@ -14,6 +14,23 @@ type Config = ChantConfig & { k8s?: K8sChantConfig };
 // own namespace and the five custom resources.
 const env = process.env.KMV_ENV ?? "dev";
 
+// The cluster this project's live reads are bound to.
+//
+// Keyed by the ENVIRONMENT name, because that is what chant looks up —
+// `k8s.profiles.<env>.context`. This was keyed `local`, which matches no
+// environment, so the binding was inert and chant said so on every live read:
+// `[k8s] no cluster binding for environment "dev" — observing whatever kubectl
+// context is ambient`. That is the same failure #44 fixed on the script side,
+// still live on the chant side: a machine with a second cluster gets its
+// overlay read from whichever context happened to be current.
+//
+// Declared only on the local target. Pinning a k3d context on a run against
+// real EKS would be worse than the bug — that cluster is the adopter's and its
+// context is theirs to name — so the real target gets no binding, exactly as
+// `scripts/lib-kube.sh` leaves `KMV_KUBE_CONTEXT` unset there.
+const kubeContext = process.env.KMV_KUBE_CONTEXT ?? `k3d-${process.env.CLUSTER ?? "kubemicrovm-local"}`;
+const k8sProfiles = process.env.AWS_ENDPOINT_URL ? { [env]: { context: kubeContext } } : {};
+
 export default {
   lexicons: ["aws", "k8s", "temporal"],
   // Whole-project discovery (bare `chant lifecycle diff|snapshot`) stays inside
@@ -21,15 +38,12 @@ export default {
   sourceDir: "src",
   environments: [env],
   ownership: { stack: "kubemicrovm-ops", env },
-  k8s: {
-    profiles: {
-      // The local target's cluster, created by scripts/local/local-up.sh. A
-      // declared binding is checked against the ambient kubectl context on
-      // every live read and apply, so a stale context refuses loudly instead
-      // of reading someone else's cluster.
-      local: { context: "k3d-kubemicrovm-local" },
-    },
-  } satisfies K8sChantConfig,
+  // The local target's cluster, created by scripts/local/local-up.sh. A
+  // declared binding is checked against the ambient kubectl context on every
+  // live read and apply, so a stale context refuses loudly instead of reading
+  // someone else's cluster. See `k8sProfiles` above for why it is keyed the
+  // way it is, and why the real target declares none.
+  k8s: { profiles: k8sProfiles } satisfies K8sChantConfig,
   buildParams: {
     // ── Naming and tagging ──────────────────────────────────────────────
     project: { type: "string", default: "kmv", env: "KMV_PROJECT" },
