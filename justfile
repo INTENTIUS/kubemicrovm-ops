@@ -237,6 +237,32 @@ export tier="prod-ha":
         echo "a cluster this would capture declared topology and nothing else." >&2
         exit 1
     fi
+    # And that the ambient context is that cluster, which is a separate question
+    # from whether it is reachable.
+    #
+    # chant's k8s binding is a guard, not a selector: with the environment bound
+    # in chant.config.ts it refuses to observe through a context that is not the
+    # bound one, rather than switching for you. Refusing is right — reading the
+    # wrong cluster would report every declared resource as missing — but the
+    # export does not fail on it. Every Kubernetes node comes back `neutral`
+    # (unobserved) and the bundle looks like an estate that was never deployed.
+    #
+    # Worth checking because the ambient context moves on its own. Anything that
+    # runs `kubectl config use-context` — another project's script, another
+    # terminal — changes it under you, and this went out grey twice before the
+    # check existed.
+    want="k3d-${CLUSTER:-kubemicrovm-local}"
+    have="$(kubectl config current-context 2>/dev/null || true)"
+    if [ "${have}" != "${want}" ]; then
+        echo "the active kubectl context is \"${have}\", not \"${want}\"" >&2
+        echo "" >&2
+        echo "chant refuses to read a cluster it is not bound to, so exporting now" >&2
+        echo "would capture the AWS plane and leave every Kubernetes resource grey." >&2
+        echo "" >&2
+        echo "  kubectl config use-context ${want}" >&2
+        echo "  just export {{tier}}" >&2
+        exit 1
+    fi
     rm -rf "${out}"
     cd "${behold}" && KMV_TIER="{{tier}}" npm run dev -- export "${kit}" \
         --env "${KMV_ENV:-dev}" --out "${out}" --name "${WORKER_NAME:-kubemicrovm-ops}"
