@@ -14,8 +14,12 @@ usage() {
   ./scripts/local/local-up.sh [minimal|prod|prod-ha]
 
 Overridable by environment variable: CLUSTER, NS, KMV_NAMESPACE, FLOCI_IMAGE,
-FLOCI_PORT, M80_IMAGE, M80_PORT, CHART_VERSION, AWS_REGION,
-MAX_ACCOUNT_MEMORY_MIB.
+FLOCI_CONTAINER, FLOCI_PORT, M80_IMAGE, M80_PORT, M80_ENABLE_INJECTION,
+CHART_VERSION, AWS_REGION, MAX_ACCOUNT_MEMORY_MIB, RECREATE_CLUSTER.
+
+A cluster that is already up is reused. RECREATE_CLUSTER=1 rebuilds it from
+nothing, which is what you want after changing m80's flags or when the estate
+has got into a state not worth reasoning about.
 
 Needs docker, k3d, kubectl, helm, the AWS CLI, node and npm. All of them are
 checked before anything is started. Uses no AWS account.
@@ -128,6 +132,25 @@ on_failure() {
 }
 trap on_failure EXIT
 
+# floci is replaced on every run, and the cluster below is not. That asymmetry
+# is the opposite of what it looks like it should be, so it is worth the words.
+#
+# The first cut of this reused both, reasoning that reusing one plane and
+# replacing the other was incoherent. CI disagreed: the second run failed with
+#
+#   An error occurred (UnknownAction) when calling the GetTemplateSummary
+#   operation: Action GetTemplateSummary is not supported.
+#
+# `aws cloudformation deploy` calls GetTemplateSummary to resolve parameters and
+# capabilities, and floci does not implement it (#45). It works against a stack
+# that does not exist and fails against one that does — so a *fresh* floci is
+# what keeps the AWS plane on the create path.
+#
+# Recreating it is cheap and safe: every name the stack produces is
+# deterministic, so the roles and bucket the operator references come back
+# identical. The estate that matters — the cluster, the operator, the custom
+# resources, and m80's in-memory state — survives, which is what behold's Bring
+# up button was destroying.
 echo "==> floci (the AWS plane) on :${FLOCI_PORT}"
 docker rm -f "${FLOCI_CONTAINER}" >/dev/null 2>&1 || true
 docker run -d --rm --name "${FLOCI_CONTAINER}" -p "${FLOCI_PORT}:4566" "${FLOCI_IMAGE}" >/dev/null
@@ -140,10 +163,37 @@ curl -sf "${AWS_ENDPOINT_URL}/_localstack/health" >/dev/null || {
     echo "floci did not come up on ${AWS_ENDPOINT_URL}" >&2; exit 1
 }
 
-echo "==> cluster ${CLUSTER}"
-k3d cluster delete "${CLUSTER}" >/dev/null 2>&1 || true
-k3d cluster create "${CLUSTER}" --agents 1 --wait --timeout 300s >/dev/null
-created_cluster=1
+# Reuse a cluster that is already there, rather than deleting it.
+#
+# This used to open with `k3d cluster delete`, which made the script safe to
+# re-run and unsafe to *call*. behold offers a substrate a "Bring up" button
+# wired to exactly this path (behold src/substrates.ts), so clicking it while
+# looking at a healthy estate tore the estate down and rebuilt it. behold's own
+# k3d demo documents its local-up.sh as "idempotent — reuses one already up",
+# which is the convention this was not following.
+#
+# Reuse is safe here because everything downstream is idempotent: helm upgrade
+# --install for the operator, kubectl apply for the CRs. What is not idempotent
+# is m80 — it is in-memory and reserves image names through the async delete
+# window, so a *fresh* estate against a *stale* m80 answers "already exists".
+# Reusing both together is consistent; reusing one is not. Since m80 lives in
+# the cluster, keeping the cluster keeps them in step.
+if k3d cluster list --no-headers 2>/dev/null | awk '{print $1}' | grep -qx "${CLUSTER}"; then
+    if [ "${RECREATE_CLUSTER:-0}" = "1" ]; then
+        echo "==> cluster ${CLUSTER} — rebuilding, RECREATE_CLUSTER=1"
+        k3d cluster delete "${CLUSTER}" >/dev/null 2>&1 || true
+        k3d cluster create "${CLUSTER}" --agents 1 --wait --timeout 300s >/dev/null
+        created_cluster=1
+    else
+        echo "==> cluster ${CLUSTER} already up, reusing it"
+        echo "    RECREATE_CLUSTER=1 to rebuild from nothing"
+        kubectl config use-context "k3d-${CLUSTER}" >/dev/null 2>&1 || true
+    fi
+else
+    echo "==> cluster ${CLUSTER}"
+    k3d cluster create "${CLUSTER}" --agents 1 --wait --timeout 300s >/dev/null
+    created_cluster=1
+fi
 
 # A locally built image is in no registry, so k3d cannot pull it. Importing is
 # what lets a contributor point the harness at their own build:

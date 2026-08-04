@@ -25,7 +25,9 @@ AWS_MICROVM_ENDPOINT=http://localhost:4290    # m80
 
 Both emulators answer as account `000000000000`, so a bucket and a role ARN minted by floci feed a `CreateMicrovmImage` on m80 with nothing rewritten.
 
-Every piece is overridable: `FLOCI_PORT`, `FLOCI_IMAGE`, `M80_IMAGE`, `M80_PORT`, `CLUSTER`, `CHART_VERSION`. Two are worth knowing about by default.
+Every piece is overridable: `FLOCI_PORT`, `FLOCI_IMAGE`, `FLOCI_CONTAINER`, `M80_IMAGE`, `M80_PORT`, `M80_ENABLE_INJECTION`, `CLUSTER`, `CHART_VERSION`, `RECREATE_CLUSTER`. Two are worth knowing about by default.
+
+**Re-running is safe.** A cluster that is already up is reused rather than replaced, so `./go` twice does not destroy what the first one built — which matters because behold wires its substrate **Bring up** button to this same script, and a click on a healthy estate used to tear it down. floci is the exception: it is replaced on every run, because `aws cloudformation deploy` calls `GetTemplateSummary` and floci does not implement it ([#45](https://github.com/INTENTIUS/kubemicrovm-ops/issues/45)) — a fresh floci keeps the AWS plane on the create path. Every name the stack produces is deterministic, so what the operator references comes back identical. `RECREATE_CLUSTER=1` rebuilds the cluster too, which is what you want after changing m80's flags, since those live in the deployment's args.
 
 **Stock floci is enough, for now.** Everything the AWS plane declares — an S3 bucket, a bucket policy, two IAM roles and three managed policies — creates cleanly on `floci/floci:latest` from Docker Hub. That was worth checking rather than assuming: an earlier version of this page said the fork was required, and it was not, because the one upstream gap that would bite is CloudFormation dropping a security group's rules and tags, and this kit declares no security groups. Point `FLOCI_IMAGE` at a build of [lex00/floci](https://github.com/lex00/floci) if the estate grows one.
 

@@ -68,6 +68,20 @@ jobs:
       - name: just validate
         run: just validate minimal
 
+      # Standing up twice is the assertion. local-up.sh used to open with
+      # `k3d cluster delete`, so a second run — or a click on behold's Bring up
+      # button, which calls this same script — destroyed a healthy estate and
+      # rebuilt it. Reuse is only a claim until something re-runs it.
+      - name: ./go again, reusing the cluster it already made
+        run: |
+          out="$(./go --yes 2>&1)" || { printf '%s\n' "$out"; exit 1; }
+          printf '%s\n' "$out"
+          printf '%s' "$out" | grep -q 'cluster .* already up, reusing it' || {
+            echo "second run did not reuse the cluster" >&2; exit 1; }
+
+      - name: and the estate still converges
+        run: just validate minimal
+
       # Doctor is a diagnostic a reader runs when something is wrong, so the
       # risk is that it rots unnoticed — it is never exercised by a green run
       # unless a green run exercises it. Against a healthy stack every check
