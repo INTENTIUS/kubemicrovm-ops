@@ -6,6 +6,7 @@
 # finalizer the operator has not yet removed will otherwise look deleted and
 # still be there — KubeMicroVM#51 is exactly that failing.
 set -euo pipefail
+. "$(dirname "$0")/../lib-kube.sh"
 
 NS="${KMV_NAMESPACE:-microvm-demo}"
 TIMEOUT="${TIMEOUT:-180s}"

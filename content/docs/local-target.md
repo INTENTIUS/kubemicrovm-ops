@@ -97,6 +97,14 @@ That is also why `local-e2e` does not run this step yet. Building m80 from sourc
 
 The seven reason codes are the service model's own: `SubnetOutOfIPAddresses` is the default here, and `REASON_CODE` picks another.
 
+## Which cluster these talk to
+
+Every script here pins its kubectl calls to the cluster this project created, via `KMV_KUBE_CONTEXT` and `scripts/lib-kube.sh`. Your active context is not consulted and not changed.
+
+That is not tidiness. `doctor` used to check the right cluster was reachable and then query whichever context happened to be active, so on a machine with a second cluster it reported a perfectly healthy estate as three failures — and `just break-it` and `just quota-refusal`, which delete custom resources and patch a deployment, would have aimed at the same wrong cluster. On a laptop whose active context was a real EKS cluster, that is not a cosmetic bug.
+
+The install scripts under `scripts/install/` deliberately do **not** default the context: they are shared with the real target, where a k3d context would be the wrong cluster entirely. They take it from the environment, which `local-up.sh` exports and `live-up.sh` does not.
+
 ## Quotas, and the cost they are
 
 The MicroVMs service caps how much memory an account may have allocated across running VMs at once. A fresh account is capped at **4096 MiB** — recorded from a real one by m80, not inferred — and at the 2048 MiB default profile that is two concurrent MicroVMs.

@@ -90,6 +90,14 @@ export AWS_SECRET_ACCESS_KEY="${AWS_SECRET_ACCESS_KEY:-test}"
 export AWS_REGION
 export KMV_TIER="${TIER}"
 
+# Every kubectl call from here on, and from the install scripts the Op runs,
+# goes to this cluster and no other (#44). Exported because the Op shells those
+# scripts as separate processes; scripts/lib-kube.sh turns it into a --context
+# on each call. The live target never sets it, so a run against real EKS is
+# untouched.
+export KMV_KUBE_CONTEXT="k3d-${CLUSTER}"
+. "$(dirname "$0")/../lib-kube.sh"
+
 # Everything this needs, checked before anything is started. All of them at
 # once rather than the first one missing, so a reader installs once instead of
 # discovering the list an error at a time. node and npm were never in the

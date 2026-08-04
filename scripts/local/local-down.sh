@@ -2,6 +2,11 @@
 # Tears the local target back down: the k3d cluster and the floci container.
 # Nothing here touches AWS, because nothing on this target was ever in AWS.
 set -euo pipefail
+. "$(dirname "$0")/../lib-kube.sh"
+# Local-target scripts know their own cluster. The install scripts under
+# scripts/install/ deliberately do not default this: they are shared with the
+# live target, where a k3d context would be the wrong cluster entirely.
+KMV_KUBE_CONTEXT="${KMV_KUBE_CONTEXT:-k3d-${CLUSTER:-kubemicrovm-local}}"
 
 CLUSTER="${CLUSTER:-kubemicrovm-local}"
 ROOT="$(cd "$(dirname "$0")/../.." && pwd)"

@@ -8,6 +8,11 @@
 # accepted them". Every one of the four schema gaps on the local-target docs
 # page applied cleanly and failed here.
 set -euo pipefail
+. "$(dirname "$0")/../lib-kube.sh"
+# Local-target scripts know their own cluster. The install scripts under
+# scripts/install/ deliberately do not default this: they are shared with the
+# live target, where a k3d context would be the wrong cluster entirely.
+KMV_KUBE_CONTEXT="${KMV_KUBE_CONTEXT:-k3d-${CLUSTER:-kubemicrovm-local}}"
 
 TIER="${1:-${KMV_TIER:-minimal}}"
 NS="${KMV_NAMESPACE:-microvm-demo}"
