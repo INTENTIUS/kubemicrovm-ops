@@ -190,3 +190,79 @@ view:
         exit 1
     fi
     cd "${behold}" && npm run dev -- serve "${kit}" --env "${KMV_ENV:-dev}"
+
+# Note: reads the estate that is standing right now — stand one up first, at
+# the tier you want the snapshot to show. `just prod-ha-local-e2e` is the one
+# worth exporting: it is the only tier declaring a class, a connector and a
+# replica floor, so it is the only one whose picture shows the whole estate.
+#
+# The bundle is every lens behold can render — each env and tier, each zoom,
+# radial on and off — captured through the same handlers the live server runs
+# and replayed client-side. Pan, zoom, the dial and the inspect pane all work
+# with nothing running. What does not survive is the live half: no polling, no
+# Op triggers, no adopt.
+#
+# The tier picker still switches all three, and the two tiers you did not
+# deploy render as declared-not-deployed against the live overlay. That is the
+# drift colouring telling the truth, not a gap in the capture.
+#
+# Output is under dist/, which is gitignored — the bundle is a build artifact,
+# not a checked-in copy of the estate.
+
+# Freeze the standing estate into a static, interactive bundle.
+export tier="prod-ha":
+    #!/usr/bin/env bash
+    set -euo pipefail
+    kit="$(pwd)"
+    out="${kit}/dist/behold-export"
+    behold="${BEHOLD_DIR:-../behold}"
+    if [ ! -d "${behold}" ]; then
+        echo "no behold checkout at ${behold}" >&2
+        echo "" >&2
+        echo "  git clone https://github.com/INTENTIUS/behold ${behold}" >&2
+        echo "  just export" >&2
+        echo "" >&2
+        echo "Or point BEHOLD_DIR at a checkout you already have." >&2
+        exit 1
+    fi
+    # An export of an estate that is not up is a bundle of empty graphs, and it
+    # looks like a broken exporter rather than an empty cluster. Say so here.
+    if ! kubectl --context "k3d-${CLUSTER:-kubemicrovm-local}" get nodes >/dev/null 2>&1; then
+        echo "no local estate to export — the cluster is not reachable" >&2
+        echo "" >&2
+        echo "  just {{tier}}-local-e2e     # stand it up, about four minutes" >&2
+        echo "  just export {{tier}}" >&2
+        echo "" >&2
+        echo "The live overlay is what makes the snapshot worth looking at; without" >&2
+        echo "a cluster this would capture declared topology and nothing else." >&2
+        exit 1
+    fi
+    rm -rf "${out}"
+    cd "${behold}" && KMV_TIER="{{tier}}" npm run dev -- export "${kit}" \
+        --env "${KMV_ENV:-dev}" --out "${out}" --name "${WORKER_NAME:-kubemicrovm-ops}"
+
+# Note: the bundle writes its own assets-only wrangler.jsonc, so there is
+# nothing to configure here. Auth is `npx wrangler login`, or
+# CLOUDFLARE_API_TOKEN + CLOUDFLARE_ACCOUNT_ID in the environment.
+#
+# This publishes to the internet. Everything in the bundle is already in this
+# public repo except the emulator's account id and the k3d-side resource names,
+# which is why exporting the local target is the safe thing to publish and
+# exporting a real account is not.
+
+# Deploy the exported bundle to Cloudflare Workers.
+publish:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    out="$(pwd)/dist/behold-export"
+    if [ ! -f "${out}/wrangler.jsonc" ]; then
+        echo "nothing exported yet at ${out}" >&2
+        echo "" >&2
+        echo "  just export" >&2
+        exit 1
+    fi
+    cd "${out}" && npx wrangler deploy
+
+# Look at the exported bundle before publishing it, on a plain static server.
+preview-export:
+    npx serve dist/behold-export

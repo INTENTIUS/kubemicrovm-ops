@@ -13,6 +13,21 @@ The estate's defining problem is that it spans AWS and Kubernetes with string re
 
 The multi-estate composition matters here specifically. The operator IAM role is once-per-region while pod identity associations and workloads are per-cluster. behold's estate composition shows the shared regional stack and each cluster's stack in one graph, so "which clusters share this role" is a picture rather than a grep.
 
+### The component graph
+
+The dial's first stop is the deploy DAG, and until [#43](https://github.com/INTENTIUS/kubemicrovm-ops/issues/43) it was an empty pane — chant discovers components by convention and the kit declared none, so someone stepping through the zoom levels saw the same picture twice and reasonably concluded the tool was broken.
+
+`src/components/` declares four, in three waves:
+
+```
+aws-plane ──▶ operator ──▶ workload
+    └──────▶ golden-image
+```
+
+That is the install Op's ordering drawn as a dependency rather than as a sequence, and it is the same ordering for the same reasons — the operator's first reconcile passes a build role that has to exist, and a custom resource cannot apply before the chart's CRDs and webhook are up. `golden-image` branches off the AWS plane because the operator-less path never reaches Kubernetes at all, which is the whole of what distinguishes it.
+
+Each component is named for the directory it owns, and that is load-bearing rather than tidy: behold correlates a resource to a component by the source file it was declared in. `operator` owns no resources and should not — the chart's objects belong to Helm, are never marked `app.kubernetes.io/managed-by=chant`, and are therefore never touched by a chant prune. It is in the graph for the edge, not the inventory.
+
 ## Drift, coloured
 
 With `--env` and read credentials, behold overlays live status on the declared topology. The states map directly onto KubeMicroVM situations.
@@ -50,6 +65,27 @@ behold holds no apply credentials. Its reads need describe and list only. For th
 ## Shareable snapshots
 
 `behold export` freezes the estate into a static, fully navigable snapshot deployable to any static host. Two uses for this kit. Design-time, an exported snapshot of the reference estate becomes a living diagram in these docs and in the upstream conversation with codriverlabs. Operationally, an export is a point-in-time record of an environment that reviewers can pan around without credentials.
+
+```sh
+just prod-ha-local-e2e     # the estate worth exporting
+just export                # freeze it into dist/behold-export
+just preview-export        # look at it before anyone else does
+just publish               # → https://kubemicrovm-ops.<account>.workers.dev
+```
+
+`prod-ha` rather than `minimal` because it is the only tier that declares a class, a connector and a replica floor, so it is the only one whose picture is the whole estate.
+
+The capture is every lens behold can render — each env and tier, each zoom level, radial on and off — taken through the same handlers the live server runs, so a snapshot is the live view rather than a rendering of it. Pan, zoom, the dial and the inspect pane all work against a bundle of JSON with nothing running behind it.
+
+What does not survive is the half that needs a server: no polling, no Op triggers, no adopt. Those are write gestures against a live cluster and a static bundle has neither.
+
+The tier picker still switches all three tiers, and the two you did not deploy render as declared-not-deployed. That is worth leaving in rather than exporting one tier — the same estate at three sizes, with the live overlay saying which one is actually standing, is a better argument than any of the three alone.
+
+### Cloudflare
+
+`behold export` writes an assets-only `wrangler.jsonc` into the bundle, so there is nothing to configure and no server code to deploy — Workers Static Assets serves it as files. `just publish` is `wrangler deploy` in that directory. Auth is `npx wrangler login`, or `CLOUDFLARE_API_TOKEN` and `CLOUDFLARE_ACCOUNT_ID` in the environment. `WORKER_NAME` renames it.
+
+Exporting the local target is the thing that makes this safe to publish. The bundle carries physical resource names and the emulator's account id, and against floci and m80 those are `000000000000` and names already in this public repo. An export of a real account is a different document and should be treated as one.
 
 ## Looking at it locally
 
