@@ -31,7 +31,7 @@ Every piece is overridable: `FLOCI_PORT`, `FLOCI_IMAGE`, `FLOCI_CONTAINER`, `M80
 
 **Stock floci is enough, for now.** Everything the AWS plane declares — an S3 bucket, a bucket policy, two IAM roles and three managed policies — creates cleanly on `floci/floci:latest` from Docker Hub. That was worth checking rather than assuming: an earlier version of this page said the fork was required, and it was not, because the one upstream gap that would bite is CloudFormation dropping a security group's rules and tags, and this kit declares no security groups. Point `FLOCI_IMAGE` at a build of [lex00/floci](https://github.com/lex00/floci) if the estate grows one.
 
-**m80 needs v0.3.0 or newer, and the published image is one.** The harness runs m80 with `-serve-sts`, the flag that answers the operator's startup gate. `v0.2.0` and the `:latest` of that era predate it, and an unknown flag is not ignored — the binary exits, so an older tag crashloops rather than degrading. v0.3.0 carries it ([m80#65](https://github.com/INTENTIUS/m80/issues/65)), and that is the pinned default; earlier versions of this page told you to build from source, which is no longer necessary.
+**m80 needs v0.4.0 or newer, and the published image is one.** The harness runs m80 with two flags it must know: `-serve-sts`, which answers the operator's startup gate, and `-enable-injection`, which arms the failure levers below. An unknown flag is not ignored — the binary exits, so an older tag crashloops rather than degrading. v0.3.0 carries the first ([m80#65](https://github.com/INTENTIUS/m80/issues/65)) and v0.4.0 the second ([m80#74](https://github.com/INTENTIUS/m80/issues/74)), so v0.4.0 is the pinned default; earlier versions of this page told you to build from source, which is no longer necessary.
 
 Point `M80_IMAGE` at your own build to test a change to m80 itself. A locally built image is in no registry, so the script imports it into the cluster for you:
 
@@ -83,17 +83,13 @@ The levers are keyed by resource name and arm *before* the resource exists — "
 
 It is destructive to the estate on purpose. `just apply-tier <tier>` puts it back.
 
-### It does not work against a published image yet
+### It needs v0.4.0, which is the default
 
-`local-up.sh` leaves `-enable-injection` off by default, and not because the levers are risky on a throwaway cluster. The flag landed on m80 main seven hours after v0.3.0 was tagged, so no published image carries it ([m80#74](https://github.com/INTENTIUS/m80/issues/74)) — and an unknown flag is not ignored, so turning it on against the default image crashloops m80 and takes the whole stand-up with it. Until a release carries it:
+`local-up.sh` passes `-enable-injection` and leaves it on. This page used to say the opposite, and said it for a real reason: the flag landed on m80 main seven hours after v0.3.0 was tagged, so for a while no published image carried it ([m80#74](https://github.com/INTENTIUS/m80/issues/74)) and turning it on crashloopped the emulator — an unknown flag is not ignored, the binary exits. v0.4.0 carries it and is the pinned default, so the levers work out of the box and `local-e2e` runs `just break-it prod-ha` on every push.
 
-```sh
-docker build -t m80:main ~/checkouts/m80
-M80_IMAGE=m80:main M80_ENABLE_INJECTION=1 just prod-ha-local-e2e
-just break-it prod-ha
-```
+On by default because a throwaway k3d cluster is exactly where that trade is worth making. Nothing under `/_m80/` is signed, which is why m80 leaves the flag off by default and is right to, and which matters not at all on a laptop cluster whose whole purpose is provoking failures. `M80_ENABLE_INJECTION=0` declines it, and `just break-it` then says so.
 
-That is also why `local-e2e` does not run this step yet. Building m80 from source in CI is what [#23](https://github.com/INTENTIUS/kubemicrovm-ops/issues/23) removed, and it is not worth reintroducing to reach one step. The workflow carries the step commented out with the condition for turning it on.
+An older `M80_IMAGE` will not do — the same unknown-flag exit applies, so pointing it at v0.3.0 crashloops the stand-up rather than degrading it.
 
 The seven reason codes are the service model's own: `SubnetOutOfIPAddresses` is the default here, and `REASON_CODE` picks another.
 
