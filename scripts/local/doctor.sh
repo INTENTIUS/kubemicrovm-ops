@@ -114,14 +114,48 @@ elif [ "${op_ready}" -lt 1 ] 2>/dev/null; then
     next "kubectl -n ${NS} logs deploy/kube-microvm-operator --tail=40"
 else
     ok "operator ready"
-    # The line local-up.sh calls the thing worth reading. It is the proof that
-    # the operator reached the emulator rather than merely started.
-    conn="$(kubectl -n "${NS}" logs deploy/kube-microvm-operator --tail=400 2>/dev/null |
-        grep -m1 'AWS connectivity confirmed')"
-    if [ -n "${conn}" ]; then
-        info "${conn}"
+
+    # Whether the operator can still reach the MicroVMs API, asked of the
+    # operator rather than of its log.
+    #
+    # This used to grep `logs --tail=400` for "AWS connectivity confirmed",
+    # which the operator prints once, at startup. On an estate that has been up
+    # a few hours that line has scrolled out of the tail, so a perfectly
+    # healthy estate reported a failure — the same shape as #44, where doctor
+    # verified one thing and reported on another. Raising the tail only moves
+    # the hour it starts lying.
+    #
+    # `/q/health` carries an `aws-connectivity` check with a live
+    # `awsConnectivity` boolean, which is the actual question and does not age.
+    # It is not on `/q/health/ready`: readiness reports the four reconcilers,
+    # and the connectivity gate only blocks readiness at startup, so a
+    # connection lost later leaves the pod ready and this check UP-to-DOWN.
+    # That gap is the reason to ask at all.
+    pf_port=18080
+    kubectl -n "${NS}" port-forward deploy/kube-microvm-operator "${pf_port}:8080" >/dev/null 2>&1 &
+    pf_pid=$!
+    health=""
+    for _ in 1 2 3 4 5 6 7 8 9 10; do
+        health="$(curl -sf "http://localhost:${pf_port}/q/health" 2>/dev/null)" && break
+        sleep 0.5
+    done
+    kill "${pf_pid}" >/dev/null 2>&1 || true
+    wait "${pf_pid}" 2>/dev/null || true
+
+    if [ -z "${health}" ]; then
+        bad "the operator is ready but its health endpoint did not answer"
+        next "kubectl -n ${NS} port-forward deploy/kube-microvm-operator 8080:8080"
+    elif printf '%s' "${health}" | grep -q '"awsConnectivity"[[:space:]]*:[[:space:]]*true'; then
+        ok "operator reaching the MicroVMs API (awsConnectivity: true)"
+        # The startup line names the account and ARN it connected as, which is
+        # worth printing when it is still in the log and worth nothing when it
+        # is not. Supplementary, never the check.
+        conn="$(kubectl -n "${NS}" logs deploy/kube-microvm-operator --tail=400 2>/dev/null |
+            grep -m1 'AWS connectivity confirmed')"
+        [ -n "${conn}" ] && info "${conn}"
     else
-        bad "the operator has not confirmed AWS connectivity"
+        bad "the operator cannot reach the MicroVMs API (awsConnectivity is not true)"
+        info "the startup gate calls sts:GetCallerIdentity, which m80 answers"
         next "kubectl -n ${NS} logs deploy/kube-microvm-operator --tail=40"
     fi
 fi

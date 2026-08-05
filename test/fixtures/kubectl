@@ -1,0 +1,32 @@
+#!/usr/bin/env bash
+# A canned `kubectl` for driving scripts/local/assert-converged.sh through
+# estate states that are awkward to produce on a live cluster.
+#
+# The one that matters is a suspended estate: the production tiers suspend at
+# 900s idle, so reproducing it for real means waiting fifteen minutes and
+# hoping nothing touches the estate in between — and any read that wakes a VM
+# auto-resumes it, which is how this went unverified long enough to ship as
+# #52.
+#
+# The scenario is `KSTUB="<readyReplicas>:<vmState,vmState,...>"`.
+# Everything else answers with whatever makes the earlier checks pass, so a
+# test is about the floor decision and nothing else.
+ready="${KSTUB%%:*}"
+states="${KSTUB#*:}"
+args="$*"
+
+case "${args}" in
+    *"config get-contexts"*)   exit 0 ;;
+    *microvmimage*)            echo "SUCCESSFUL"; exit 0 ;;
+    *microvmnetwork*)          echo "ACTIVE"; exit 0 ;;
+    *"spec.replicas"*)         echo "2"; exit 0 ;;
+    *"status.readyReplicas"*)  echo "${ready}"; exit 0 ;;
+    *"get microvm"*)
+        IFS=,
+        for s in ${states}; do
+            [ -n "${s}" ] && echo "${s}"
+        done
+        exit 0
+        ;;
+    *) exit 0 ;;
+esac

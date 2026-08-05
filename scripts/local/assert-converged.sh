@@ -42,6 +42,58 @@ wait_for() {
     fail "${what} never reached ${want} within ${TIMEOUT}s"
 }
 
+# Every MicroVM's state, one per line. Empty when none are declared.
+vm_states() {
+    kubectl -n "${NS}" get microvm -o jsonpath='{range .items[*]}{.status.state}{"\n"}{end}' 2>/dev/null |
+        grep -v '^$' || true
+}
+
+count_state() { vm_states | grep -cx "$1" || true; }
+
+# A VM the operator suspended is a converged VM, and the whole reason this
+# needs saying is that `readyReplicas` cannot tell you so.
+#
+# The production tiers declare `maxIdleDurationSeconds: 900` with
+# `autoResumeEnabled: true`, so an estate nobody touches for fifteen minutes
+# has its VMs suspended by the operator doing exactly what the tier asked. The
+# floor then reads 0 and this script used to wait ten minutes and call a
+# healthy estate broken (#52) — the failure most likely to be seen by somebody
+# else, because it is what happens if you stand the estate up and then talk for
+# a quarter of an hour.
+#
+# docs/lifecycle.md already draws the line: an auto-suspended VM is a status
+# difference, not spec drift, and triggers nothing. This was the one place in
+# the kit that did not honour it.
+#
+# Accepting `Suspended` costs a fresh run nothing. Suspension takes 900s of
+# idle and TIMEOUT is 600s, so nothing on a stand-up can reach that state
+# inside the window — CI still waits for VMs that genuinely come up Running.
+# What it must not accept is `Pending`, `Failed` or a VM that is simply absent,
+# so the floor is counted rather than assumed.
+wait_for_floor() {
+    local want="$1" deadline=$((SECONDS + TIMEOUT)) ready suspended running total
+    while [ "${SECONDS}" -lt "${deadline}" ]; do
+        ready="$(kubectl -n "${NS}" get microvmreplicaset -o jsonpath='{.items[0].status.readyReplicas}' 2>/dev/null || true)"
+        [ -z "${ready}" ] && ready=0
+        if [ "${ready}" -ge "${want}" ] 2>/dev/null; then
+            echo "    the replica floor (${want}): ok"
+            return 0
+        fi
+        running="$(count_state Running)"
+        suspended="$(count_state Suspended)"
+        total="$(vm_states | grep -c . || true)"
+        # Every VM accounted for, enough of them, and none in a state that is
+        # neither of the two the operator moves a healthy VM between.
+        if [ "$((running + suspended))" -ge "${want}" ] && [ "$((running + suspended))" -eq "${total}" ]; then
+            echo "    the replica floor (${want}): ok — ${running} running, ${suspended} suspended by the idle policy"
+            echo "      readyReplicas is ${ready}: a suspended VM is not a ready one. Traffic auto-resumes it."
+            return 0
+        fi
+        sleep 5
+    done
+    fail "the replica floor (${want}) never filled within ${TIMEOUT}s"
+}
+
 echo "==> waiting for the ${TIER} estate to converge"
 
 wait_for "image build" \
@@ -49,20 +101,21 @@ wait_for "image build" \
     "SUCCESSFUL"
 
 if [ "${TIER}" = "minimal" ]; then
+    # `Suspended` for the same reason as the floor below — though `minimal`
+    # declares no class, so it takes the service defaults and is far less
+    # likely to get there.
     wait_for "the MicroVM" \
         "microvm -o jsonpath={.items[*].status.state}" \
-        "Running"
+        "Running|Suspended"
 else
     wait_for "the network connector" \
         "microvmnetwork -o jsonpath={.items[*].status.connectorState}" \
         "ACTIVE"
 
-    # The floor, not just a replica: readyReplicas has to equal what the tier
-    # asked for, which is the whole point of prod-ha having one.
+    # The floor, not just a replica: the tier asked for a number and the whole
+    # point of prod-ha is that the number is two.
     want_replicas="$(kubectl -n "${NS}" get microvmreplicaset -o jsonpath='{.items[0].spec.replicas}')"
-    wait_for "the replica floor (${want_replicas})" \
-        "microvmreplicaset -o jsonpath={.items[0].status.readyReplicas}" \
-        "^${want_replicas}$"
+    wait_for_floor "${want_replicas}"
 fi
 
 echo "    the ${TIER} estate converged"
