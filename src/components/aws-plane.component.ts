@@ -25,6 +25,20 @@ export const awsPlane: Component = {
   name: "aws-plane",
   archetype: "infra",
   dependsOn: [],
+  // See the note in ./workload.component.ts — the join is by entity name, and
+  // none of these is called `aws-plane`. The composite members are listed by
+  // their expanded ids (`<instanceName><MemberName>`), which are also the
+  // CloudFormation logical ids.
+  liveNames: [
+    "artifactBucket",
+    "artifactBucketPolicy",
+    "buildRole",
+    "operatorRole",
+    "operatorMicrovmPolicy",
+    "operatorConnectorPolicy",
+    "operatorPassRolePolicy",
+    "podIdentity",
+  ],
   deploy: [
     // Once per region, and a no-op on re-run through CloudFormation's own
     // idempotency — which is why the install Op can be re-run against a

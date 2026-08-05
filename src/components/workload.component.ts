@@ -20,6 +20,28 @@ export const workload: Component = {
   // the webhook is up is rejected by the webhook. The operator carries the
   // AWS-plane dependency transitively.
   dependsOn: ["operator"],
+  // The entity names this component owns, which are not its name.
+  //
+  // `chant components status --live` joins live evidence to a component by
+  // name, and falls back to component-name == entity-name when nothing says
+  // otherwise. Nothing here is called `workload`, so that join found nothing
+  // and every component reported `resources: null` — no rollup, and behold
+  // paints a component with no rollup neutral, which reads as "not deployed"
+  // for an estate that is running.
+  //
+  // Listed across every tier on purpose. A name with no entity at the current
+  // tier is filtered out rather than counted absent (`liveEvidenceFromChangeSet`
+  // drops unresolved names), so one list covers `minimal`'s bare `workloadVm`
+  // and the production tiers' replica set without branching.
+  liveNames: [
+    "operatorNs",
+    "workloadNs",
+    "workloadImage",
+    "workloadVmClass",
+    "workloadNetwork",
+    "workloadVm",
+    "workloadReplicaSet",
+  ],
   deploy: [
     // Two steps rather than one, because "it applied" and "it converged" are
     // different claims and every schema gap this kit has hit passed the first
