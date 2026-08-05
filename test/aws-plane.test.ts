@@ -46,7 +46,12 @@ describe("account-scoped ARNs are composed at deploy time", () => {
   });
 
   test("the service-linked-role ARN uses the pseudo-parameters", () => {
-    const connector = template.Resources.networkConnectorPolicy.Properties.PolicyDocument as {
+    // `operatorConnectorPolicy`, not `networkConnectorPolicy`: the policy is a
+    // member of the `OperatorRole` composite now, and a member's logical id is
+    // `<instanceName><MemberName>`. Found by the id, not by scanning for the
+    // statement, so a rename shows up here rather than silently matching
+    // nothing.
+    const connector = template.Resources.operatorConnectorPolicy.Properties.PolicyDocument as {
       Statement: Array<{ Sid?: string; Resource?: unknown }>;
     };
     const statement = connector.Statement.find((s) => s.Sid === "LambdaServiceLinkedRole");
