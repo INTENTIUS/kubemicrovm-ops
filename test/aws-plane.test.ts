@@ -60,3 +60,53 @@ describe("account-scoped ARNs are composed at deploy time", () => {
     });
   });
 });
+
+// The reference-existing seams, wired end to end. Supplying a role ARN and
+// selecting reference-existing used to silently DROP the dependent grant —
+// the PassRole policy, the pod identity binding — exactly for the adopter the
+// seam exists for. A dropped grant builds and lints clean and fails at
+// runtime, which is this file's whole theme.
+describe("reference-existing seams carry the supplied ARN into dependent grants", () => {
+  const BUILD_ARN = "arn:aws:iam::123456789012:role/adopter-build";
+  const OPERATOR_ARN = "arn:aws:iam::123456789012:role/adopter-operator";
+
+  const build = (params: string[], env: Record<string, string> = {}) =>
+    JSON.parse(
+      execFileSync("npx", ["chant", "build", "src/aws-plane", "--lexicon", "aws", ...params.flatMap((p) => ["--param", p])], {
+        cwd: root,
+        encoding: "utf8",
+        env: { ...process.env, AWS_ENDPOINT_URL: "http://localhost:4566", ...env },
+        maxBuffer: 16 * 1024 * 1024,
+      }),
+    ) as { Resources: Record<string, { Type: string; Properties: Record<string, unknown> }> };
+
+  test("a referenced build role keeps the operator's PassRole grant, pointing at the supplied ARN", () => {
+    const t = build(["buildRoleMode=reference-existing"], { KMV_BUILD_ROLE_ARN: BUILD_ARN });
+    const pass = Object.values(t.Resources).find(
+      (r) => r.Type === "AWS::IAM::ManagedPolicy" && String(r.Properties.ManagedPolicyName).includes("passrole"),
+    );
+    expect(pass, "the PassRole managed policy must survive the seam").toBeDefined();
+    expect(JSON.stringify(pass!.Properties)).toContain(BUILD_ARN);
+    // And the build role itself is genuinely not provisioned.
+    const roles = Object.values(t.Resources).filter((r) => r.Type === "AWS::IAM::Role");
+    expect(roles).toHaveLength(1); // the operator role only
+  });
+
+  test("a referenced operator role keeps the pod identity binding, pointing at the supplied ARN", () => {
+    const t = build(["operatorRoleMode=reference-existing", "podIdentityMode=provision"], {
+      KMV_OPERATOR_ROLE_ARN: OPERATOR_ARN,
+      KMV_CLUSTER_NAME: "adopter-cluster",
+    });
+    const assoc = Object.values(t.Resources).find((r) => r.Type === "AWS::EKS::PodIdentityAssociation");
+    expect(assoc, "the pod identity association must survive the seam").toBeDefined();
+    expect(assoc!.Properties.RoleArn).toBe(OPERATOR_ARN);
+  });
+
+  test("reference-existing with NO ARN supplied still drops the grant rather than emitting it pointing at nothing", () => {
+    const t = build(["buildRoleMode=reference-existing"]);
+    const pass = Object.values(t.Resources).find(
+      (r) => r.Type === "AWS::IAM::ManagedPolicy" && String(r.Properties.ManagedPolicyName).includes("passrole"),
+    );
+    expect(pass).toBeUndefined();
+  });
+});

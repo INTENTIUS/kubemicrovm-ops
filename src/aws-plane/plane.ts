@@ -32,10 +32,12 @@ import { kmvNaming } from "../lib/naming";
 import {
   bucketMode,
   bucketName,
+  buildRoleArn,
   buildRoleMode,
   clusterName,
   namingParams,
   operatorNamespace,
+  operatorRoleArn,
   operatorRoleMode,
   OPERATOR_SERVICE_ACCOUNT,
   podIdentityMode,
@@ -73,8 +75,6 @@ const artifactObjectArn = `arn:aws:s3:::${artifactBucketName}/*`;
 export const artifact =
   bucketMode === "provision" ? ArtifactBucket({ bucketName: artifactBucketName, tags }) : undefined;
 
-/** The bucket name every downstream reference resolves to, whatever the seam. */
-export const resolvedBucketName = bucketMode === "provision" ? artifactBucketName : bucketName;
 
 /**
  * The build role. The MicroVMs service assumes this to fetch the artifact and
@@ -123,9 +123,13 @@ export const buildRole =
       })
     : undefined;
 
-// Dropped rather than emitted pointing at nothing when the build role is
-// referenced rather than provisioned — the PassRole grant would have no ARN.
-const passableBuildRoleArn = buildRole ? buildRole.Arn : undefined;
+// The ARN the PassRole grant names, whatever the seam: the provisioned role's
+// own, else the referenced one the caller supplied. Only genuinely absent when
+// the seam is reference-existing AND no ARN was given — KMV005's territory —
+// in which case the grant is dropped rather than emitted pointing at nothing.
+// (Dropping it on ANY reference-existing was the old behavior: an adopter who
+// supplied a build role silently lost the operator's permission to pass it.)
+const passableBuildRoleArn = buildRole ? buildRole.Arn : buildRoleArn;
 
 /**
  * The operator role and its three managed policies, as the one unit they are.
@@ -146,8 +150,11 @@ export const operator =
       })
     : undefined;
 
-// The association names the role by ARN, and only exists when the role does.
-const operatorRoleArnForBinding = operator ? operator.role.Arn : undefined;
+// The ARN the association binds, whatever the seam: the provisioned role's
+// own, else the referenced one the caller supplied. An adopter bringing their
+// operator role still needs the pod identity binding — the old `undefined`
+// here silently dropped it exactly when `reference-existing` was in play.
+const operatorRoleArnForBinding = operator ? operator.role.Arn : operatorRoleArn;
 
 /**
  * Binds the operator's service account to the operator role, per cluster.
