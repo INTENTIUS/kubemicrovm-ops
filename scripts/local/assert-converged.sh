@@ -12,12 +12,25 @@ set -euo pipefail
 # Local-target scripts know their own cluster. The install scripts under
 # scripts/install/ deliberately do not default this: they are shared with the
 # live target, where a k3d context would be the wrong cluster entirely.
-KMV_KUBE_CONTEXT="${KMV_KUBE_CONTEXT:-k3d-${CLUSTER:-kubemicrovm-local}}"
+# The k3d default is a LOCAL-target assumption; on the real target the
+# ambient context (the one cluster-kubeconfig.sh set) is the cluster, and
+# forcing k3d here made every real-target read fail with "context does not
+# exist" (first real converge).
+if [ -n "${AWS_ENDPOINT_URL:-}" ]; then
+    KMV_KUBE_CONTEXT="${KMV_KUBE_CONTEXT:-k3d-${CLUSTER:-kubemicrovm-local}}"
+fi
 
 TIER="${1:-${KMV_TIER:-minimal}}"
 NS="${KMV_NAMESPACE:-microvm-demo}"
 OPERATOR_NS="${NS_OPERATOR:-kube-microvm}"
-TIMEOUT="${TIMEOUT:-600}"
+# 600s fits the local target, where m80 collapses the image build to 500ms.
+# The real service builds an image in ~45 minutes, so the real-target default
+# has to outlast it — override with TIMEOUT either way.
+if [ -n "${AWS_ENDPOINT_URL:-}" ]; then
+    TIMEOUT="${TIMEOUT:-600}"
+else
+    TIMEOUT="${TIMEOUT:-3600}"
+fi
 
 fail() {
     echo "" >&2
