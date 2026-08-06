@@ -27,6 +27,11 @@ const local = target.target === "local";
 
 // Bound to consts so the declaration stays statically evaluable, same rule as
 // the AWS plane.
+// Off only by explicit choice: the failure-path harness needs it, and an m80
+// older than v0.4.0 crashloops on the flag rather than ignoring it — which is
+// the pin floor, not a reason to leave it off. Bound to a const before the
+// spread (EVL004).
+const injectionArgs = m80EnableInjection ? ["-enable-injection"] : [];
 const args = [
   "-addr",
   `:${m80Port}`,
@@ -35,10 +40,7 @@ const args = [
   "-max-account-memory-mib",
   m80MaxAccountMemoryMib,
   "-serve-sts",
-  // Off only by explicit choice: the failure-path harness needs it, and an
-  // m80 older than v0.4.0 crashloops on the flag rather than ignoring it —
-  // which is the pin floor, not a reason to leave it off.
-  ...(m80EnableInjection ? ["-enable-injection"] : []),
+  ...injectionArgs,
 ];
 
 export const m80Deploy = local
