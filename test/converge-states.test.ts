@@ -28,7 +28,11 @@ const stubDir = join(root, "test", "fixtures");
 const script = join(root, "scripts", "local", "assert-converged.sh");
 
 /** Run the convergence check against one canned estate state. */
-function converge(readyReplicas: number, vmStates: string[]): { ok: boolean; out: string } {
+function converge(
+  readyReplicas: number,
+  vmStates: string[],
+  stub: { image?: string; connector?: string; graceSeconds?: number } = {},
+): { ok: boolean; out: string } {
   try {
     const out = execFileSync("bash", [script, "prod-ha"], {
       cwd: root,
@@ -37,6 +41,11 @@ function converge(readyReplicas: number, vmStates: string[]): { ok: boolean; out
       env: {
         ...process.env,
         KSTUB: `${readyReplicas}:${vmStates.join(",")}`,
+        KSTUB_IMAGE: stub.image ?? "",
+        KSTUB_CONNECTOR: stub.connector ?? "",
+        // The stub holds one state forever, so "persisted past the grace
+        // window" is driven by shrinking the window, not by waiting out 300s.
+        KMV_FAIL_FAST_AFTER: stub.graceSeconds === undefined ? "" : String(stub.graceSeconds),
         // The stub shadows the real binary. `scripts/lib-kube.sh` wraps kubectl
         // in a function that calls `command kubectl`, which resolves on PATH.
         PATH: `${stubDir}:${process.env.PATH}`,
@@ -103,5 +112,55 @@ describe("and what suspension must not be allowed to excuse", () => {
 
   test("fewer VMs than the floor is not a converged estate, however healthy they are", () => {
     expect(converge(1, ["Running"]).ok).toBe(false);
+  });
+});
+
+describe("a failed state that outlives the grace window is a verdict, not a wait", () => {
+  // The real-target timeout is an hour, sized to outlast a genuine image
+  // build. The first real run spent that hour waiting on a CREATE_FAILED the
+  // service had reported in minute two. These drive the grace window to zero
+  // so "persisted past it" is immediate against a stub that never changes.
+  test("an image build that stays failed says so, instead of timing out", () => {
+    const { ok, out } = converge(2, ["Running", "Running"], { image: "CREATE_FAILED", graceSeconds: 0 });
+    expect(ok).toBe(false);
+    expect(out).toContain("sat in a failed state");
+    expect(out).toContain("CREATE_FAILED");
+    expect(out).not.toContain("never reached");
+  });
+
+  test("a connector that stays failed says so, instead of timing out", () => {
+    const { ok, out } = converge(2, ["Running", "Running"], { connector: "FAILED", graceSeconds: 0 });
+    expect(ok).toBe(false);
+    expect(out).toContain("sat in a failed state");
+    expect(out).not.toContain("never reached");
+  });
+
+  test("a VM stuck in Failed fails the floor once the grace window closes", () => {
+    const { ok, out } = converge(1, ["Running", "Failed"], { graceSeconds: 0 });
+    expect(ok).toBe(false);
+    expect(out).toContain("sat in Failed");
+    expect(out).not.toContain("never filled");
+  });
+});
+
+describe("and a failed state inside the grace window is a moment, not a verdict", () => {
+  // The operator retries: the failure-injection stage moves an image from
+  // FAILED back to SUCCESSFUL in about thirty seconds, and a VM applied while
+  // its image was still building goes Failed until the reconcile after the
+  // build wins. First-sight fail-fast shipped once and broke exactly that
+  // race in CI — with the default grace (far past this test's 3s timeout),
+  // a sighted failure must still be the plain timeout, never a verdict.
+  test("a Failed VM within the grace window times out quietly rather than being declared dead", () => {
+    const { ok, out } = converge(1, ["Running", "Failed"]);
+    expect(ok).toBe(false);
+    expect(out).toContain("never filled");
+    expect(out).not.toContain("sat in Failed");
+  });
+
+  test("a failed image within the grace window is likewise still a wait", () => {
+    const { ok, out } = converge(2, ["Running", "Running"], { image: "CREATE_FAILED" });
+    expect(ok).toBe(false);
+    expect(out).toContain("never reached");
+    expect(out).not.toContain("sat in a failed state");
   });
 });
