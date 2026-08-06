@@ -123,9 +123,9 @@ local-down:
 # Note: this is what an adopter on EKS runs. local-up.sh calls it after
 # standing up the emulators, so both targets reach the same four phases.
 
-# The install Op on its own, against a cluster and endpoints that exist.
+# The component run on its own, against a cluster and endpoints that exist.
 install:
-    npx chant run kubemicrovm-install
+    npx chant run all --components --env "${KMV_ENV:-dev}"
 
 # The estate and the operator removed, cluster left where it was found.
 teardown:

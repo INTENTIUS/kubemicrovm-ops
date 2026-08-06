@@ -211,60 +211,22 @@ if docker image inspect "${M80_IMAGE}" >/dev/null 2>&1; then
     k3d image import "${M80_IMAGE}" -c "${CLUSTER}" >/dev/null
 fi
 
-kubectl create namespace "${NS}" --dry-run=client -o yaml | kubectl apply -f - >/dev/null
+# m80 is deployed by the local-substrate COMPONENT now — declared in
+# src/local-substrate/, applied and rollout-waited as the first wave of the
+# component run below. This script's remaining job is only the substrate the
+# cluster itself cannot own: floci and k3d.
 
-echo "==> m80 (the MicroVMs API, and the sts:GetCallerIdentity the operator gates on)"
-kubectl apply -f - >/dev/null <<YAML
-apiVersion: apps/v1
-kind: Deployment
-metadata: { name: m80, namespace: ${NS} }
-spec:
-  replicas: 1
-  selector: { matchLabels: { app: m80 } }
-  template:
-    metadata: { labels: { app: m80 } }
-    spec:
-      containers:
-        - name: m80
-          image: ${M80_IMAGE}
-          args: ["-addr", ":${M80_PORT}", "-build-delay", "500ms", "-max-account-memory-mib", "${MAX_ACCOUNT_MEMORY_MIB}", "-serve-sts"${INJECT_ARG}]
-          ports: [{ containerPort: ${M80_PORT} }]
-          readinessProbe:
-            httpGet: { path: /_m80/health, port: ${M80_PORT} }
-            initialDelaySeconds: 2
----
-apiVersion: v1
-kind: Service
-metadata: { name: m80, namespace: ${NS} }
-spec:
-  selector: { app: m80 }
-  ports: [{ port: ${M80_PORT}, targetPort: ${M80_PORT} }]
-YAML
-# On failure this is a five minute wait followed by one line about a deadline,
-# which says nothing about the emulator having exited on an argument it did not
-# recognise. m80's own logs say exactly that, so print them.
-if ! kubectl -n "${NS}" rollout status deploy/m80 --timeout=300s; then
-    echo "" >&2
-    echo "m80 did not become ready. Its last output:" >&2
-    kubectl -n "${NS}" logs deploy/m80 --tail=20 --all-containers --ignore-errors >&2 || true
-    kubectl -n "${NS}" get pods -l app=m80 -o wide >&2 || true
-    echo "" >&2
-    echo "M80_IMAGE is ${M80_IMAGE}. The harness passes -serve-sts, which needs" >&2
-    echo "v0.3.0 or newer; older tags exit rather than ignore it." >&2
-    exit 1
-fi
-
-# From here the install Op owns the ordering — AWS plane, operator, estate,
-# converge. This script's job was the substrate underneath it: floci, k3d and
-# m80 are the local target's own lifecycle and nothing an adopter on EKS has.
+# From here the component run owns the ordering — local-substrate + aws-plane
+# in the first wave, then operator, then workload. What CI proves and what an
+# adopter runs are the same declared components, reached by different routes.
 #
 # So what CI proves and what an adopter runs are the same four phases, reached
 # by different routes.
 export AWS_MICROVM_ENDPOINT="http://m80.${NS}.svc.cluster.local:${M80_PORT}"
 export AWS_ENDPOINT_URL_STS="${AWS_MICROVM_ENDPOINT}"
 
-echo "==> install Op"
-(cd "${ROOT}" && npx chant run kubemicrovm-install)
+echo "==> components"
+(cd "${ROOT}" && npx chant run all --components --env "${KMV_ENV:-dev}")
 
 echo
 echo "local target up at tier ${TIER}."

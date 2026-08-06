@@ -1,4 +1,7 @@
 import { phase, type Component } from "@intentius/chant/components";
+import { params } from "@intentius/chant/params";
+
+const goldenImageMode = (params.goldenImageMode as string | undefined) ?? "omit";
 
 /**
  * The operator-less path: chant's `MicrovmApp` composite, which builds an
@@ -18,6 +21,10 @@ import { phase, type Component } from "@intentius/chant/components";
  */
 export const goldenImage: Component = {
   name: "golden-image",
+  // Seam-gated (#1522): only a run that provisions the golden image carries
+  // this unit — under the default `omit`, `run all` deploys the estate the
+  // parameters describe and this component sits out.
+  enabled: goldenImageMode === "provision",
   archetype: "infra",
   // The image is built from an object in the artifact bucket, so the bucket
   // has to exist first. Nothing in the cluster is involved at all.

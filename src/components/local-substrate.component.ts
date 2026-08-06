@@ -1,5 +1,12 @@
 import { phase, type Component } from "@intentius/chant/components";
 import { kubectlApply } from "@intentius/chant-lexicon-k8s/components";
+import { params } from "@intentius/chant/params";
+import { resolveTarget } from "../lib/target";
+
+const target = resolveTarget({
+  awsEndpointUrl: params.awsEndpointUrl as string | undefined,
+  microvmEndpointUrl: params.microvmEndpointUrl as string | undefined,
+});
 
 /**
  * m80, deployed the way everything else now is: built from its declaration
@@ -14,11 +21,21 @@ import { kubectlApply } from "@intentius/chant-lexicon-k8s/components";
  */
 export const localSubstrate: Component = {
   name: "local-substrate",
+  // Target-gated (#1522): the real target's MicroVMs API is AWS's own — the
+  // component sits out of `run all` there instead of applying an empty
+  // manifest.
+  enabled: target.target === "local",
   archetype: "infra",
   dependsOn: [],
   liveNames: ["m80Deploy", "m80Svc"],
   deploy: [
     phase("Apply", [
+      {
+        kind: "shell",
+        cmd: "kubectl create namespace kube-microvm --dry-run=client -o yaml | kubectl apply -f - >/dev/null",
+        reason:
+          "bootstrap ordering, not ownership: the namespace is declared and labelled by the workload stack, which deploys last — m80 just needs somewhere to land first, and this bare create is what the old runner did",
+      },
       {
         kind: "shell",
         cmd: "bash scripts/install/build-local-substrate.sh",
@@ -32,6 +49,12 @@ export const localSubstrate: Component = {
         noRollback:
           "server-side apply keeps no previous object state; the pinned declaration is the restore path",
       }),
+      {
+        kind: "shell",
+        cmd: "kubectl -n kube-microvm rollout status deploy/m80 --timeout=300s",
+        reason:
+          "the operator's AWS connectivity gate calls m80's STS shim at startup — waiting for the emulator's rollout here is what makes the operator install deterministic instead of racing it",
+      },
     ]),
   ],
 };
