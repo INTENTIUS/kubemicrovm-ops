@@ -44,10 +44,25 @@ export const awsPlane: Component = {
     // idempotency — which is why the install Op can be re-run against a
     // standing estate rather than being an install-only path.
     phase("Apply", [
+      // Synthesis first: cfn-deploy applies dist/, and the Op used to build
+      // it in aws-plane.sh — the component owning its own input is what makes
+      // this description the executed one rather than a diverging copy.
+      {
+        kind: "shell",
+        cmd: "npx chant build src/aws-plane --lexicon aws -o dist/aws-plane.template.json",
+        reason:
+          "a synthesis step, not a mutation: chant building the template the next step deploys",
+      },
       {
         kind: "cfn-deploy",
         stack: "kubemicrovm-ops-aws-plane",
         template: "dist/aws-plane.template.json",
+      },
+      {
+        kind: "shell",
+        cmd: "bash scripts/install/seed-artifact.sh",
+        reason:
+          "local-target placeholder object so the image source points at something — generated on the fly, and an explicit no-op on the real target where the artifact is the adopter's",
       },
     ]),
   ],

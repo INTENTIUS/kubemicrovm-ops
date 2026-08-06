@@ -76,7 +76,10 @@ jobs:
       - uses: actions/checkout@v4
       - name: pull the chart and diff its CRDs
         run: |
-          version="$(grep -o 'CHART_VERSION:-[0-9.]*' scripts/local/local-up.sh | head -1 | cut -d- -f2)"
+          # The pin is the declared operatorChartVersion parameter — one
+          # place, the same value every deploy step reads.
+          version="$(grep -o 'operatorChartVersion: { type: "string", default: "[0-9.]*"' chant.config.ts | grep -o '[0-9.]*"$' | tr -d '"')"
+          [ -n "${version}" ] || { echo "could not read operatorChartVersion from chant.config.ts"; exit 1; }
           echo "pinned chart version: ${version}"
           helm pull oci://ghcr.io/codriverlabs/helm/kube-microvm-operator \
             --version "${version}" --untar --untardir /tmp/chart

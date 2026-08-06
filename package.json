@@ -11,15 +11,17 @@
     "build": "npm run tsc",
     "synth:aws-plane": "chant build src/aws-plane --lexicon aws -o dist/aws-plane.template.json",
     "synth:workload": "chant build src/workload --lexicon k8s -o dist/workload.yaml",
+    "synth:local-substrate": "chant build src/local-substrate --lexicon k8s -o dist/local-substrate.yaml",
     "synth:golden-image": "chant build src/golden-image --lexicon aws --param goldenImageMode=provision -o dist/golden-image.template.json",
     "ops:build": "chant build ops",
     "synth": "npm run synth:aws-plane && npm run synth:workload"
   },
   "dependencies": {
-    "@intentius/chant": "^0.41.5",
-    "@intentius/chant-lexicon-aws": "^0.41.5",
-    "@intentius/chant-lexicon-k8s": "^0.41.5",
-    "@intentius/chant-lexicon-temporal": "^0.41.5"
+    "@intentius/chant": "^0.41.9",
+    "@intentius/chant-lexicon-aws": "^0.41.9",
+    "@intentius/chant-lexicon-helm": "^0.41.9",
+    "@intentius/chant-lexicon-k8s": "^0.41.9",
+    "@intentius/chant-lexicon-temporal": "^0.41.9"
   },
   "devDependencies": {
     "@types/js-yaml": "^4.0.9",

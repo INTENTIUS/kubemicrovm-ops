@@ -1,4 +1,8 @@
 import { phase, type Component } from "@intentius/chant/components";
+import { kubectlApply } from "@intentius/chant-lexicon-k8s/components";
+import { params } from "@intentius/chant/params";
+
+const tier = (params.tier as string | undefined) ?? "minimal";
 
 /**
  * The Kubernetes plane: the two namespaces and whichever of the five custom
@@ -47,12 +51,26 @@ export const workload: Component = {
     // different claims and every schema gap this kit has hit passed the first
     // and failed the second.
     phase("Apply", [
+      // Build first: the estate manifest wires in the AWS plane's REAL
+      // outputs (bucket and role names read back off the deployed stack —
+      // deliberate, see aws-plane.component.ts), so it cannot be built ahead
+      // of the plane. Target-agnostic: the readbacks hit whichever AWS the
+      // environment points at.
       {
         kind: "shell",
-        cmd: "bash scripts/local/apply-estate.sh",
+        cmd: `bash scripts/install/build-estate.sh ${tier}`,
         reason:
-          "the estate is built and applied by the same script the install Op runs, which reads the AWS-plane role and bucket names back off the deployed stack rather than guessing them.",
+          "a build step, not an apply: the AWS-plane bucket and role names are read back off the deployed stack and wired into the manifest — reading what CloudFormation actually created is what stops the two planes disagreeing.",
       },
+      // The apply itself is the capability: stack-marked, prune-scoped to
+      // what this component owns, observed by name in components status.
+      kubectlApply({
+        manifest: `dist/workload-${tier}.yaml`,
+        stack: "kmv-workload",
+        delete: "owned-only",
+        noRollback:
+          "server-side apply keeps no previous object state; the declared source at the previous tier is the restore path (build-estate + re-apply)",
+      }),
     ]),
     phase("Converge", [
       {
