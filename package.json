@@ -17,11 +17,11 @@
     "synth": "npm run synth:aws-plane && npm run synth:workload"
   },
   "dependencies": {
-    "@intentius/chant": "^0.41.11",
-    "@intentius/chant-lexicon-aws": "^0.41.11",
-    "@intentius/chant-lexicon-helm": "^0.41.11",
-    "@intentius/chant-lexicon-k8s": "^0.41.11",
-    "@intentius/chant-lexicon-temporal": "^0.41.11"
+    "@intentius/chant": "^0.41.12",
+    "@intentius/chant-lexicon-aws": "^0.41.12",
+    "@intentius/chant-lexicon-helm": "^0.41.12",
+    "@intentius/chant-lexicon-k8s": "^0.41.12",
+    "@intentius/chant-lexicon-temporal": "^0.41.12"
   },
   "devDependencies": {
     "@types/js-yaml": "^4.0.9",
