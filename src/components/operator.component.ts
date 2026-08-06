@@ -48,7 +48,7 @@ export const operator: Component = {
   // The operator's first reconcile passes a build role to the MicroVMs
   // service. If the AWS plane has not been applied, that role does not exist
   // and the failure arrives in a controller log rather than at install time.
-  dependsOn: ["aws-plane"],
+  dependsOn: ["aws-plane", "local-substrate"],
   deploy: [
     phase("Install", [
       // Before the chart, so a custom resource applies whether or not the
