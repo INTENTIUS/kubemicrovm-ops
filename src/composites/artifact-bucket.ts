@@ -46,7 +46,11 @@ export const ArtifactBucket = Composite((props: ArtifactBucketProps) => {
   // value to be a plain identifier or literal, never a call.
   const bucketRef = Ref(bucket) as unknown as string;
   const bucketArn = bucket.Arn;
-  const objectsArn = `${bucket.Arn}/*`;
+  // Composed from the literal name, never by interpolating an attribute
+  // reference — a template literal stringifies an AttrRef to
+  // "[object Object]/*", which floci accepted and real S3 refused with
+  // "Policy has invalid resource" (found on the first real deploy).
+  const objectsArn = `arn:aws:s3:::${props.bucketName}/*`;
 
   /**
    * Deny anything reaching the bucket without TLS. `setup-test-env.sh` blocks
