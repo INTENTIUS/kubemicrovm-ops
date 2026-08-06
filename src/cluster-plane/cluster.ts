@@ -42,6 +42,10 @@ export const cluster =
           minSize: ngShape.desiredSize,
           maxSize: ngShape.maxSize,
         },
+        // Without the agent, the pod identity association delivers no
+        // credentials and the operator crashloops on aws-connectivity DOWN —
+        // the first real converge proved it.
+        addons: [{ name: "eks-pod-identity-agent" }],
         tags,
       })
     : undefined;
