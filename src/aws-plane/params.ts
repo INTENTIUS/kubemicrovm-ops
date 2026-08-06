@@ -8,7 +8,7 @@
  */
 
 import { params } from "@intentius/chant/params";
-import type { NamingParams } from "../lib/naming";
+import { kmvNaming, type NamingParams } from "../lib/naming";
 import type { Tier } from "../lib/tiers";
 import { optionalAccountId, resolveTarget } from "../lib/target";
 
@@ -57,7 +57,13 @@ export type PodIdentitySeam = "provision" | "omit";
 export const podIdentityMode: PodIdentitySeam =
   (params.podIdentityMode as PodIdentitySeam | undefined) ?? (target.target === "local" ? "omit" : "provision");
 
-export const clusterName = optional(params.clusterName);
+const clusterMode = (params.clusterMode as string | undefined) ?? "reference-existing";
+/** The provisioned cluster's name is deterministic (the naming key), so under
+ * clusterMode=provision the pod identity association binds to it without the
+ * caller re-stating it. reference-existing still supplies its own. */
+export const clusterName =
+  optional(params.clusterName) ??
+  (clusterMode === "provision" ? kmvNaming(namingParams).name("cluster", { service: "k8sObject" }) : undefined);
 
 export const operatorNamespace = (params.operatorNamespace as string | undefined) ?? "kube-microvm";
 
