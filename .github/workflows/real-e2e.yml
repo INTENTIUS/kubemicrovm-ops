@@ -1,0 +1,127 @@
+name: real-e2e
+
+# The real-AWS matrix, on demand, teardown guaranteed (#67).
+#
+# This bills real money, so nothing triggers it but a human: dispatch-only,
+# and the `real-aws` environment adds a reviewer gate on top of the click.
+# The credentials are OIDC into a scoped role and exist only inside that
+# environment — there is no long-lived key for a fork PR to exfiltrate,
+# and no trigger a fork PR can reach.
+#
+# Cost, named here per the tiers-page convention: an EKS control plane at
+# $0.10/h plus a t3.medium node group and one NAT gateway, for under two
+# hours — roughly $2 a run. prod-ha adds a second AZ's traffic and a second
+# 4096 MiB VM, which also needs the account's memory quota above the fresh
+# default (the 2026-08-06 validation run stopped exactly there).
+#
+# What a run proves that the local target structurally cannot: the real
+# service builds the seeded artifact, assumes the declared roles, provisions
+# the connector's ENIs, and enforces quotas — everything on the far side of
+# the API calls the emulators intercept. The idle-policy refusal and the
+# quota wall were both found by exactly this run shape, after a month of
+# green local e2e.
+
+on:
+  workflow_dispatch:
+    inputs:
+      tier:
+        description: Deployment tier to validate
+        type: choice
+        required: true
+        default: minimal
+        options: [minimal, prod, prod-ha]
+
+permissions:
+  contents: read
+  id-token: write
+
+# One real run at a time, and never cancel one to start another: two runs
+# share an account (the same check-then-act quota window as m80#70, but on
+# a live bill), and a cancelled run is a run whose teardown never fired.
+concurrency:
+  group: real-aws
+  cancel-in-progress: false
+
+env:
+  # No AWS_ENDPOINT_URL anywhere in this file — its absence IS the target
+  # selection, per the tiers page. Setting it here would aim the whole run
+  # at an emulator that does not exist on this runner.
+  AWS_REGION: us-east-1
+  KMV_TIER: ${{ inputs.tier }}
+  KMV_CLUSTER_MODE: provision
+  # The kit's own known-good sample (Dockerfile + node server on 8080), so
+  # the run does not depend on somebody having uploaded an artifact first.
+  KMV_SEED_ARTIFACT: "1"
+  KUBECONFIG: /tmp/kmv-real-kubeconfig
+
+jobs:
+  real-e2e:
+    runs-on: ubuntu-latest
+    # The real image build is ~15-20 minutes and the cluster ~20; the converge
+    # script's own real-target timeout is an hour. This bounds the whole run
+    # including teardown, with room for one slow build, not two.
+    timeout-minutes: 150
+    # Configured in repo settings: required reviewers, and the variable
+    # REAL_AWS_ROLE_ARN naming the OIDC role to assume. Both are deliberately
+    # outside this file — the gate must not be editable by the PR it gates.
+    environment: real-aws
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ vars.REAL_AWS_ROLE_ARN }}
+          aws-region: us-east-1
+
+      - name: npm ci
+        run: npm ci
+
+      # The same command the docs give an adopter and local-up.sh runs on k3d:
+      # cluster-plane, aws-plane, operator, workload, in dependency order,
+      # with the converge assert inside the workload component. local-substrate
+      # sits out on its own enabled condition — nothing here excludes it.
+      - name: the component run, against real AWS
+        run: npx chant run all --components --env dev
+
+      - name: what the operator saw
+        if: always()
+        run: |
+          kubectl -n kube-microvm logs deploy/kube-microvm-operator --tail=200 || true
+          kubectl -n microvm-demo get microvmimages,microvms,microvmreplicasets,microvmclasses,microvmnetworks -o wide || true
+          kubectl -n microvm-demo get microvm -o jsonpath='{range .items[*]}{.metadata.name}: {.status.conditions[*].message}{"\n"}{end}' || true
+
+      # The run must cost at most the run. The teardown Op reverses the
+      # install (estate, operator, AWS plane — the image cannot be deleted
+      # while a VM references it, so the order matters); the raw deletes
+      # behind it are the fallback for an Op that died before finishing, and
+      # the waits make DELETE_FAILED a visible failure here rather than a
+      # surprise on next month's bill. Cluster plane last: the pod identity
+      # association leaves with the AWS plane before the cluster it points at.
+      - name: teardown, always
+        if: always()
+        run: |
+          npx chant run kubemicrovm-teardown || true
+          aws cloudformation delete-stack --stack-name kubemicrovm-ops-aws-plane 2>/dev/null || true
+          aws cloudformation wait stack-delete-complete --stack-name kubemicrovm-ops-aws-plane || true
+          aws cloudformation delete-stack --stack-name kubemicrovm-ops-cluster-plane 2>/dev/null || true
+          aws cloudformation wait stack-delete-complete --stack-name kubemicrovm-ops-cluster-plane
+
+      # Trust nothing above: read the account and fail if anything survived.
+      # A leftover here is money on a timer, which is the one failure this
+      # workflow exists to make impossible to miss.
+      - name: nothing left behind
+        if: always()
+        run: |
+          left="$(aws cloudformation list-stacks \
+            --stack-status-filter CREATE_COMPLETE UPDATE_COMPLETE DELETE_FAILED DELETE_IN_PROGRESS \
+            --query 'StackSummaries[?starts_with(StackName, `kubemicrovm-ops`)].StackName' --output text)"
+          clusters="$(aws eks list-clusters --query 'clusters' --output text)"
+          if [ -n "${left}${clusters}" ]; then
+            echo "leftovers: stacks='${left}' clusters='${clusters}'" >&2
+            exit 1
+          fi
+          echo "account clean"
