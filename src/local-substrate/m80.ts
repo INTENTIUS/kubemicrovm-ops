@@ -75,6 +75,11 @@ export const m80Deploy = local
                 // the image runs as its own nonroot user.
                 securityContext: {
                   runAsNonRoot: true,
+                  // Distroless names its user ("nonroot") rather than
+                  // numbering it, and the kubelet can only verify
+                  // runAsNonRoot against a numeric uid — 65532 is
+                  // distroless's own nonroot uid.
+                  runAsUser: 65532,
                   readOnlyRootFilesystem: true,
                   allowPrivilegeEscalation: false,
                   capabilities: { drop: ["ALL"] },
