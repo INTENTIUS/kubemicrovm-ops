@@ -136,7 +136,7 @@ function buildPassRolePolicy(name: string, roles: string[], buildRoleArn: string
 export const OperatorRole = Composite((props: OperatorRoleProps) => {
   const role = new Role({
     RoleName: props.roleName,
-    Description: "KubeMicroVM operator role — shared across clusters in this region.",
+    Description: "KubeMicroVM operator role - shared across clusters in this region.",
     MaxSessionDuration: 3600,
     AssumeRolePolicyDocument: ASSUME_ROLE_POLICY,
     Tags: props.tags,
