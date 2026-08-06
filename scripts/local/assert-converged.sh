@@ -42,15 +42,27 @@ fail() {
     exit 1
 }
 
+# How long a failed state must persist before it counts as a verdict rather
+# than a moment the operator is about to fix. Failed states here are not
+# reliably terminal: the operator retries image builds (the failure-injection
+# stage proves it, FAILED to SUCCESSFUL in about thirty seconds), and a VM
+# applied while its image was still building goes Failed and is reconciled
+# back to life a cycle after the image succeeds — on the real target that
+# reconcile interval is about a minute. Five minutes is comfortably past any
+# retry the operator actually performs, and fifty-five minutes sooner than the
+# real-target timeout would deliver the same news.
+GRACE="${KMV_FAIL_FAST_AFTER:-300}"
+
 # Poll a jsonpath until it matches, or give up with the operator's reasoning.
 #
-# The optional fourth argument names states that waiting cannot fix. An image
-# whose build reports CREATE_FAILED at minute two will still report it at
-# minute sixty — the real-target timeout is an hour to outlast a real build,
-# and spending the other fifty-eight minutes on a verdict already in hand just
-# delays the log you need. Terminal states exit now, with the state named.
+# The optional fourth argument names failed states. One sighting proves
+# nothing (see GRACE above) — but a failed state that persists, unbroken, past
+# the grace window is a verdict, and the first real run spent a full hour
+# waiting out a CREATE_FAILED the service had reported in minute two. The
+# clock resets whenever the state moves: an operator mid-retry oscillates, and
+# oscillation means someone is still trying.
 wait_for() {
-    local what="$1" query="$2" want="$3" dead="${4:-}" deadline=$((SECONDS + TIMEOUT)) got
+    local what="$1" query="$2" want="$3" dead="${4:-}" deadline=$((SECONDS + TIMEOUT)) got bad_since=""
     while [ "${SECONDS}" -lt "${deadline}" ]; do
         got="$(kubectl -n "${NS}" get ${query} 2>/dev/null || true)"
         if grep -qE "${want}" <<< "${got}"; then
@@ -58,7 +70,12 @@ wait_for() {
             return 0
         fi
         if [ -n "${dead}" ] && grep -qE "${dead}" <<< "${got}"; then
-            fail "${what} reached a terminal state: $(echo ${got})"
+            bad_since="${bad_since:-${SECONDS}}"
+            if [ "$((SECONDS - bad_since))" -ge "${GRACE}" ]; then
+                fail "${what} sat in a failed state for ${GRACE}s with no retry moving it: $(echo ${got})"
+            fi
+        else
+            bad_since=""
         fi
         sleep 5
     done
@@ -94,7 +111,7 @@ count_state() { vm_states | grep -cx "$1" || true; }
 # What it must not accept is `Pending`, `Failed` or a VM that is simply absent,
 # so the floor is counted rather than assumed.
 wait_for_floor() {
-    local want="$1" deadline=$((SECONDS + TIMEOUT)) ready suspended running total failed
+    local want="$1" deadline=$((SECONDS + TIMEOUT)) ready suspended running total failed failed_since=""
     while [ "${SECONDS}" -lt "${deadline}" ]; do
         ready="$(kubectl -n "${NS}" get microvmreplicaset -o jsonpath='{.items[0].status.readyReplicas}' 2>/dev/null || true)"
         [ -z "${ready}" ] && ready=0
@@ -112,12 +129,18 @@ wait_for_floor() {
             echo "      readyReplicas is ${ready}: a suspended VM is not a ready one. Traffic auto-resumes it."
             return 0
         fi
-        # Failed is terminal for a MicroVM: the operator does not retry it into
-        # Running, so a floor short by a Failed VM stays short. Same reasoning
-        # as wait_for's terminal states — exit with the verdict, not the clock.
+        # A Failed VM the replica set replaces, or the operator retries, clears
+        # within a reconcile cycle or two. One that persists past GRACE is a
+        # floor that will not fill — same verdict-versus-moment line as
+        # wait_for, and the same reset when the count moves back to zero.
         failed="$(count_state Failed)"
         if [ "${failed}" -gt 0 ]; then
-            fail "the replica floor cannot fill: ${failed} VM(s) in terminal state Failed"
+            failed_since="${failed_since:-${SECONDS}}"
+            if [ "$((SECONDS - failed_since))" -ge "${GRACE}" ]; then
+                fail "the replica floor cannot fill: ${failed} VM(s) sat in Failed for ${GRACE}s with no retry moving them"
+            fi
+        else
+            failed_since=""
         fi
         sleep 5
     done
