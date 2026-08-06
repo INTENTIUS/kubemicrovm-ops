@@ -32,7 +32,7 @@ const kubeContext = process.env.KMV_KUBE_CONTEXT ?? `k3d-${process.env.CLUSTER ?
 const k8sProfiles = process.env.AWS_ENDPOINT_URL ? { [env]: { context: kubeContext } } : {};
 
 export default {
-  lexicons: ["aws", "k8s", "temporal"],
+  lexicons: ["aws", "k8s", "helm", "temporal"],
   // Whole-project discovery (bare `chant lifecycle diff|snapshot`) stays inside
   // src/, so it never walks the Hugo docs site or the test fixtures.
   sourceDir: "src",
