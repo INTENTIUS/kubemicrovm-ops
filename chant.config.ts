@@ -89,8 +89,17 @@ export default {
       default: "provision",
     },
     operatorRoleArn: { type: "string", required: false, env: "KMV_OPERATOR_ROLE_ARN" },
-    // The EKS cluster and the VPC are reference-existing with no provision
-    // path, deliberately — see docs/tiers.md. They are inputs, not seams.
+    // The cluster plane (VPC + EKS + node group) — a seam like every other
+    // resource, per the all-infra-from-tiers-and-targets directive that
+    // reversed the old "inputs, not seams" position. `provision` declares the
+    // whole plane (src/cluster-plane); `reference-existing` supplies your own
+    // via clusterName/subnetIds/securityGroupIds, which also remains the
+    // local-k3d default until the local target moves to the declared cluster.
+    clusterMode: {
+      type: "string",
+      enum: ["provision", "reference-existing"],
+      default: "reference-existing",
+    },
     clusterName: { type: "string", required: false, env: "KMV_CLUSTER_NAME" },
     subnetIds: { type: "string", required: false, env: "KMV_SUBNET_IDS" },
     securityGroupIds: { type: "string", required: false, env: "KMV_SECURITY_GROUP_IDS" },
