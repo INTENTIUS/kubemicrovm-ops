@@ -31,7 +31,7 @@ const script = join(root, "scripts", "local", "assert-converged.sh");
 function converge(
   readyReplicas: number,
   vmStates: string[],
-  stub: { image?: string; connector?: string; graceSeconds?: number } = {},
+  stub: { image?: string; connector?: string; graceSeconds?: number; quotaRefused?: boolean } = {},
 ): { ok: boolean; out: string } {
   try {
     const out = execFileSync("bash", [script, "prod-ha"], {
@@ -43,6 +43,7 @@ function converge(
         KSTUB: `${readyReplicas}:${vmStates.join(",")}`,
         KSTUB_IMAGE: stub.image ?? "",
         KSTUB_CONNECTOR: stub.connector ?? "",
+        KSTUB_QUOTA: stub.quotaRefused ? "1" : "",
         // The stub holds one state forever, so "persisted past the grace
         // window" is driven by shrinking the window, not by waiting out 300s.
         KMV_FAIL_FAST_AFTER: stub.graceSeconds === undefined ? "" : String(stub.graceSeconds),
@@ -140,6 +141,20 @@ describe("a failed state that outlives the grace window is a verdict, not a wait
     expect(ok).toBe(false);
     expect(out).toContain("sat in Failed");
     expect(out).not.toContain("never filled");
+  });
+});
+
+describe("a quota refusal is the service's verdict and skips the grace entirely", () => {
+  // prod-ha on real AWS: 2 x 4096 MiB against a fresh account's 8192 MiB
+  // ceiling. The refused VM flaps Pending → Failed → Pending, so the grace
+  // clock resets forever and the wait would run to timeout on an answer the
+  // service gave in minute one. The condition, not the state, carries the 402.
+  test("a floor short on ServiceQuotaExceededException fails now, with the quota named", () => {
+    const { ok, out } = converge(1, ["Running", "Failed"], { quotaRefused: true });
+    expect(ok).toBe(false);
+    expect(out).toContain("account quota");
+    expect(out).not.toContain("never filled");
+    expect(out).not.toContain("sat in Failed");
   });
 });
 
