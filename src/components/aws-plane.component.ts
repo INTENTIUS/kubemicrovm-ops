@@ -24,7 +24,9 @@ import { phase, type Component } from "@intentius/chant/components";
 export const awsPlane: Component = {
   name: "aws-plane",
   archetype: "infra",
-  dependsOn: [],
+  // cluster-plane when provisioned (#1522 satisfies it vacuously otherwise):
+  // the pod identity association binds to the cluster by name.
+  dependsOn: ["cluster-plane"],
   // See the note in ./workload.component.ts — the join is by entity name, and
   // none of these is called `aws-plane`. The composite members are listed by
   // their expanded ids (`<instanceName><MemberName>`), which are also the
