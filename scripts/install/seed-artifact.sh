@@ -1,17 +1,23 @@
 #!/usr/bin/env bash
-# Puts a placeholder artifact in the bucket, on the local target only.
+# Puts a buildable sample artifact in the bucket.
 #
-# Nothing fetches it: the real MicroVMs service assumes the build role and
-# fetches the object itself, inside AWS, which is the part no emulator reaches.
-# It is here because an estate whose image source points at nothing is not an
-# honest picture of one that points at something.
+# The zip honours the service's artifact contract — a Dockerfile at the root
+# and an app listening on 8080 (the MicroVMs getting-started page) — because
+# only the real service ever opens it. m80 collapses the build to a stub, so
+# the local target would accept a text file; the real service actually builds
+# the image, and a placeholder there turns into CREATE_FAILED forty minutes
+# in. Seeding something the builder cannot build is worse than seeding
+# nothing.
 #
-# On the real target this is a no-op — the artifact is the adopter's, and
-# inventing one would overwrite it.
+# On the real target the artifact is the adopter's, and inventing one would
+# overwrite it — so this seeds there only when asked, with KMV_SEED_ARTIFACT=1
+# (which is how the kit's own validation runs get a known-good image source).
+# The local target always seeds: an estate whose image source points at
+# nothing is not an honest picture of one that points at something.
 set -euo pipefail
 
-if [ -z "${AWS_ENDPOINT_URL:-}" ]; then
-    echo "==> artifact: real target, yours to upload"
+if [ -z "${AWS_ENDPOINT_URL:-}" ] && [ "${KMV_SEED_ARTIFACT:-}" != "1" ]; then
+    echo "==> artifact: real target, yours to upload (or set KMV_SEED_ARTIFACT=1 for the sample)"
     exit 0
 fi
 
@@ -23,7 +29,26 @@ BUCKET="$(aws cloudformation describe-stack-resources --stack-name "${STACK_NAME
 
 echo "==> artifact: s3://${BUCKET}/${SOURCE_KEY}"
 TMP="$(mktemp -d)"
-printf 'placeholder artifact for the local target\n' > "${TMP}/app.txt"
-(cd "${TMP}" && zip -q -j app.zip app.txt)
+
+cat > "${TMP}/Dockerfile" <<'EOF'
+FROM node:24-alpine
+WORKDIR /app
+COPY app.js .
+EXPOSE 8080
+CMD ["node", "app.js"]
+EOF
+
+cat > "${TMP}/app.js" <<'EOF'
+const http = require("node:http");
+
+http
+    .createServer((req, res) => {
+        res.writeHead(200, { "content-type": "text/plain" });
+        res.end("hello from kube-microvm\n");
+    })
+    .listen(8080);
+EOF
+
+(cd "${TMP}" && zip -q -j app.zip Dockerfile app.js)
 aws s3 cp "${TMP}/app.zip" "s3://${BUCKET}/${SOURCE_KEY}" >/dev/null
 rm -rf "${TMP}"

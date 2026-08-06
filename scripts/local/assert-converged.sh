@@ -43,12 +43,22 @@ fail() {
 }
 
 # Poll a jsonpath until it matches, or give up with the operator's reasoning.
+#
+# The optional fourth argument names states that waiting cannot fix. An image
+# whose build reports CREATE_FAILED at minute two will still report it at
+# minute sixty — the real-target timeout is an hour to outlast a real build,
+# and spending the other fifty-eight minutes on a verdict already in hand just
+# delays the log you need. Terminal states exit now, with the state named.
 wait_for() {
-    local what="$1" query="$2" want="$3" deadline=$((SECONDS + TIMEOUT))
+    local what="$1" query="$2" want="$3" dead="${4:-}" deadline=$((SECONDS + TIMEOUT)) got
     while [ "${SECONDS}" -lt "${deadline}" ]; do
-        if kubectl -n "${NS}" get ${query} 2>/dev/null | grep -qE "${want}"; then
+        got="$(kubectl -n "${NS}" get ${query} 2>/dev/null || true)"
+        if grep -qE "${want}" <<< "${got}"; then
             echo "    ${what}: ok"
             return 0
+        fi
+        if [ -n "${dead}" ] && grep -qE "${dead}" <<< "${got}"; then
+            fail "${what} reached a terminal state: $(echo ${got})"
         fi
         sleep 5
     done
@@ -84,7 +94,7 @@ count_state() { vm_states | grep -cx "$1" || true; }
 # What it must not accept is `Pending`, `Failed` or a VM that is simply absent,
 # so the floor is counted rather than assumed.
 wait_for_floor() {
-    local want="$1" deadline=$((SECONDS + TIMEOUT)) ready suspended running total
+    local want="$1" deadline=$((SECONDS + TIMEOUT)) ready suspended running total failed
     while [ "${SECONDS}" -lt "${deadline}" ]; do
         ready="$(kubectl -n "${NS}" get microvmreplicaset -o jsonpath='{.items[0].status.readyReplicas}' 2>/dev/null || true)"
         [ -z "${ready}" ] && ready=0
@@ -102,6 +112,13 @@ wait_for_floor() {
             echo "      readyReplicas is ${ready}: a suspended VM is not a ready one. Traffic auto-resumes it."
             return 0
         fi
+        # Failed is terminal for a MicroVM: the operator does not retry it into
+        # Running, so a floor short by a Failed VM stays short. Same reasoning
+        # as wait_for's terminal states — exit with the verdict, not the clock.
+        failed="$(count_state Failed)"
+        if [ "${failed}" -gt 0 ]; then
+            fail "the replica floor cannot fill: ${failed} VM(s) in terminal state Failed"
+        fi
         sleep 5
     done
     fail "the replica floor (${want}) never filled within ${TIMEOUT}s"
@@ -111,7 +128,8 @@ echo "==> waiting for the ${TIER} estate to converge"
 
 wait_for "image build" \
     "microvmimage -o jsonpath={.items[*].status.latestVersionState}" \
-    "SUCCESSFUL"
+    "SUCCESSFUL" \
+    "FAILED"
 
 if [ "${TIER}" = "minimal" ]; then
     # `Suspended` for the same reason as the floor below — though `minimal`
@@ -119,11 +137,13 @@ if [ "${TIER}" = "minimal" ]; then
     # likely to get there.
     wait_for "the MicroVM" \
         "microvm -o jsonpath={.items[*].status.state}" \
-        "Running|Suspended"
+        "Running|Suspended" \
+        "Failed"
 else
     wait_for "the network connector" \
         "microvmnetwork -o jsonpath={.items[*].status.connectorState}" \
-        "ACTIVE"
+        "ACTIVE" \
+        "FAILED"
 
     # The floor, not just a replica: the tier asked for a number and the whole
     # point of prod-ha is that the number is two.
