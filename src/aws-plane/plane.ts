@@ -88,7 +88,7 @@ export const buildRole =
   buildRoleMode === "provision"
     ? new Role({
         RoleName: buildRoleName,
-        Description: "Lambda MicroVM image build role — S3 read on the artifact bucket, CloudWatch write.",
+        Description: "Lambda MicroVM image build role - S3 read on the artifact bucket, CloudWatch write.",
         AssumeRolePolicyDocument: {
           Version: "2012-10-17",
           Statement: [
