@@ -51,14 +51,23 @@ BUCKET="$(aws cloudformation describe-stack-resources --stack-name "${STACK_NAME
 BUILD_ROLE_ARN="$(role_arn "$(stack_resource buildRole)")"
 OPERATOR_ROLE_ARN="$(role_arn "$(stack_resource operatorRole)")"
 
-# Cluster network inputs: fakes suffice on the local target (k3d has no VPC);
-# the real target must supply its own until the cluster plane is declared.
-if [ -n "${AWS_ENDPOINT_URL:-}" ]; then
+# Cluster network inputs: under clusterMode=provision they are read back off
+# the cluster-plane stack (the same two-planes-agree pattern as the bucket and
+# roles above); fakes suffice on the local k3d target; a reference-existing
+# real target supplies its own.
+CLUSTER_STACK="${CLUSTER_STACK:-kubemicrovm-ops-cluster-plane}"
+if [ "${KMV_CLUSTER_MODE:-reference-existing}" = "provision" ]; then
+    SUBNETS_QUERY="StackResources[?LogicalResourceId=='networkPrivateSubnet1'||LogicalResourceId=='networkPrivateSubnet2'].PhysicalResourceId"
+    KMV_SUBNET_IDS="${KMV_SUBNET_IDS:-$(aws cloudformation describe-stack-resources --stack-name "${CLUSTER_STACK}"         --query "${SUBNETS_QUERY}" --output text | tr '\t' ',')}"
+    # The control plane's own security group, from the cluster itself.
+    CLUSTER_FOR_SG="${KMV_CLUSTER_NAME:-$(aws cloudformation describe-stack-resources --stack-name "${CLUSTER_STACK}"         --query "StackResources[?ResourceType=='AWS::EKS::Cluster'].PhysicalResourceId | [0]" --output text)}"
+    KMV_SECURITY_GROUP_IDS="${KMV_SECURITY_GROUP_IDS:-$(aws eks describe-cluster --name "${CLUSTER_FOR_SG}"         --query "cluster.resourcesVpcConfig.clusterSecurityGroupId" --output text)}"
+elif [ -n "${AWS_ENDPOINT_URL:-}" ]; then
     KMV_SUBNET_IDS="${KMV_SUBNET_IDS:-subnet-local-a,subnet-local-b}"
     KMV_SECURITY_GROUP_IDS="${KMV_SECURITY_GROUP_IDS:-sg-local}"
 else
-    : "${KMV_SUBNET_IDS:?real target needs KMV_SUBNET_IDS (the cluster subnets)}"
-    : "${KMV_SECURITY_GROUP_IDS:?real target needs KMV_SECURITY_GROUP_IDS}"
+    : "${KMV_SUBNET_IDS:?real target needs KMV_SUBNET_IDS (the cluster subnets), or clusterMode=provision}"
+    : "${KMV_SECURITY_GROUP_IDS:?real target needs KMV_SECURITY_GROUP_IDS, or clusterMode=provision}"
 fi
 
 (cd "${ROOT}" && \

@@ -36,6 +36,12 @@ export const clusterPlane: Component = {
         stack: "kubemicrovm-ops-cluster-plane",
         template: "dist/cluster-plane.template.json",
       },
+      {
+        kind: "shell",
+        cmd: "bash scripts/install/cluster-kubeconfig.sh",
+        reason:
+          "the waves after this one talk to the cluster this wave created — update-kubeconfig is how it becomes reachable, on both targets (floci's EKS answers it too)",
+      },
     ]),
   ],
 };

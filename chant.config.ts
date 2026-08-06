@@ -99,6 +99,7 @@ export default {
       type: "string",
       enum: ["provision", "reference-existing"],
       default: "reference-existing",
+      env: "KMV_CLUSTER_MODE",
     },
     clusterName: { type: "string", required: false, env: "KMV_CLUSTER_NAME" },
     subnetIds: { type: "string", required: false, env: "KMV_SUBNET_IDS" },
