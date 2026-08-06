@@ -74,6 +74,15 @@ echo "    m80 restarted at -max-account-memory-mib ${CEILING}"
 # did exactly that, and the finding was wrong.
 kubectl -n "${NS}" delete microvmreplicaset,microvm,microvmimage,microvmnetwork,microvmclass \
     --all --timeout=180s >/dev/null 2>&1 || true
+# The restart hazard m80 documents ("do not restart m80 under a live
+# operator"): the operator cannot finish deleting a connector the fresh m80
+# has never heard of, so the network CR's finalizer never lifts, the delete
+# above times out (swallowed), and the re-apply below patches a mid-deletion
+# CR that then never reconciles. The documented workaround is removing the
+# finalizer — the connector it guards is provably gone with the state wipe.
+for stuck in $(kubectl -n "${NS}" get microvmnetwork -o name 2>/dev/null); do
+    kubectl -n "${NS}" patch "${stuck}" --type=merge -p '{"metadata":{"finalizers":[]}}' >/dev/null 2>&1 || true
+done
 kubectl apply -f "${ROOT}/dist/workload-${TIER}.yaml" >/dev/null
 
 # The connector has to come back before anything can be concluded about memory.
