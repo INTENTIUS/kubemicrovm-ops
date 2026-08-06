@@ -99,6 +99,30 @@ describe("what each tier declares", () => {
   });
 });
 
+describe("every VM has an idle policy from somewhere", () => {
+  // `CreateMicroVm` refuses null `idlePolicy` fields with a ValidationException
+  // — found on the real service 2026-08-06, a month after m80 accepted the
+  // nulls. There is no service default, so a VM without `className` must carry
+  // the two duration fields itself, and a VM with one must not duplicate them.
+  test("minimal's VM carries the policy flat, having no class to name", () => {
+    const vm = ofKind("minimal", "MicroVM");
+    expect(vm?.spec?.className).toBeUndefined();
+    expect(vm?.spec?.maxIdleDurationSeconds).toBeGreaterThan(0);
+    expect(vm?.spec?.suspendedDurationSeconds).toBeGreaterThan(0);
+    expect(vm?.spec?.autoResumeEnabled).toBe(true);
+  });
+
+  test("the class tiers name the class and leave the flat fields off", () => {
+    for (const tier of ["prod", "prod-ha"] as const) {
+      const template = ofKind(tier, "MicroVMReplicaSet")?.spec?.template as
+        | Record<string, unknown>
+        | undefined;
+      expect(template?.className).toBeDefined();
+      expect(template?.maxIdleDurationSeconds).toBeUndefined();
+    }
+  });
+});
+
 describe("the workload namespace carries the label the webhook requires", () => {
   test.each(TIERS)("%s", (tier) => {
     const namespaces = (built[tier] ?? []).filter((m) => m.kind === "Namespace");

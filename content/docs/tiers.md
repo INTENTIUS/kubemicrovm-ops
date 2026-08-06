@@ -25,10 +25,11 @@ Every row below is a field KubeMicroVM's own CRDs define at the pinned chart rel
 | `MicroVMImage.spec.memorySizeMiB` | 2048 | 4096 | 4096 |
 | `MicroVMImage.spec.maxVersionsToKeep` | 2 | 5 | 5 |
 | `MicroVMClass` | Not declared | Declared, VMs reference it by `className` | Declared |
-| Idle policy | Service defaults | `maxIdleDurationSeconds: 900`, `autoResumeEnabled: true`, `suspendedDurationSeconds: 3600` | Same |
+| Idle policy | Same numbers, flat on the VM spec — no class to carry them | `maxIdleDurationSeconds: 900`, `autoResumeEnabled: true`, `suspendedDurationSeconds: 3600` via the class | Same |
 | Lifetime cap | None | None | `maximumDurationSeconds: 28800` |
 | `MicroVMNetwork` | Not declared, managed egress | Declared, `IPv4`, one subnet | Declared, `IPv4`, two subnets |
 | AWS prerequisites | S3 bucket, build role | Plus the operator role as the connector's `operatorRoleArn`, subnets, security groups | Plus a second availability zone's subnet |
+| Node group, when `clusterMode=provision` | 1 node, capped at 1 | 2 nodes, capped at 3 | 2 nodes, capped at 4 |
 | Quota discovery | Off | On | On |
 
 Two things that table corrects, because both are easy to assume the other way round:
@@ -39,9 +40,11 @@ Two things that table corrects, because both are easy to assume the other way ro
 
 **A replica set's `template` is the MicroVM spec inline.** There is no metadata wrapper the way there is in a Kubernetes `ReplicaSet`, so the same object serves both shapes and the kit builds it once.
 
+**There is no service default for the idle policy.** `minimal` originally declared none, on the assumption the service would supply one. The real service refuses the create — `ValidationException: Value null at 'idlePolicy.maxIdleDurationSeconds'` — and m80 had been accepting the null, which is how the assumption survived a month of local runs (filed as an m80 fidelity gap). The CRD carries the same three fields flat on the VM spec, so `minimal` declares them there rather than growing a class it has no other use for.
+
 The memory sizes named here are the service's five runtime profiles (512, 1024, 2048, 4096, 8192). They are unrelated to deployment tiers and the collision in the word is unfortunate. Where the docs say "tier" without qualification they mean the deployment tier in this table.
 
-Constant across every tier: the five CRDs, the operator install, the namespace label the webhook enforces, the cross-plane edges the lint pack checks, and the naming scheme.
+Constant across every tier: the five CRDs, the operator install, the namespace label the webhook enforces, the cross-plane edges the lint pack checks, and the naming scheme. The provisioned cluster's control plane and VPC are also tier-invariant — EKS requires two availability zones whatever the tier, so the VPC is always 2-AZ and only the node group under it scales with the tier, the same way the replica floor does above it.
 
 ## Targets
 
@@ -95,13 +98,11 @@ This replaces the two-shape split the [estate]({{< relref "estate" >}}) page ori
 
 ### The full-provision decision
 
-The [roadmap]({{< relref "roadmap" >}}) left this open, leaning reference-existing only until someone asked. The reasoning behind that lean was cost: every test of a provisioning path meant standing up an EKS cluster. Against the local target it costs nothing, and what provisioning code needs checking, that the estate declares correctly, is exactly what the local target can check.
+The [roadmap]({{< relref "roadmap" >}}) left this open, leaning reference-existing only until someone asked. The reasoning behind that lean was cost: every test of a provisioning path meant standing up an EKS cluster. Then the real-AWS validation runs needed the kit to stand on infrastructure it declared itself, and the lean reversed.
 
-The decision is to split it rather than answer it once.
+`provision` exists for every prerequisite now, split across two stacks. The AWS plane provisions the S3 bucket, the build role, the operator role and its pod identity association — the resources their `setup-test-env.sh` creates by hand today. The cluster plane, behind `clusterMode` (`KMV_CLUSTER_MODE`), provisions the 2-AZ VPC and the EKS cluster with its tier-sized node group, from the aws lexicon's own `VpcDefault` and `EksCluster` composites. Downstream waves read the cluster's outputs back off the deployed stack, so nothing is pasted between the planes.
 
-`provision` is built for the AWS-plane prerequisites the operator needs to function at all: the S3 bucket, the build role, the operator role and its pod identity association. These are the resources their `setup-test-env.sh` creates by hand today, they are what the kit replaces in [#6](https://github.com/INTENTIUS/kubemicrovm-ops/issues/6), and the local target validates them for free.
-
-`provision` is deferred for the EKS cluster and the VPC. Those default to `reference-existing`. Nobody adopting this kit is standing up their first cluster with it, the local target substitutes k3d for EKS so it would validate the least useful part, and deferring costs nothing because the seam already exists to fill in later.
+`clusterMode` defaults to `reference-existing`. Nobody adopting this kit is standing up their first cluster with it, and the local target's k3d cluster arrives by a different door. `provision` is how the kit deploys itself onto real AWS from nothing.
 
 ## What has been validated
 
@@ -109,7 +110,7 @@ Filled in as each cell is actually run, rather than written from what the code i
 
 | Tier | Local | Real |
 |------|-------|------|
-| `minimal` | **Deployed end to end 2026-08-02.** Image built to `SUCCESSFUL` on m80, MicroVM reached `Running`, operator confirmed connectivity | Not run |
+| `minimal` | **Deployed end to end 2026-08-02.** Image built to `SUCCESSFUL` on m80, MicroVM reached `Running`, operator confirmed connectivity | **Deployed end to end 2026-08-06.** The kit provisioned its own VPC, EKS cluster and node group (`clusterMode=provision`), the real service built the seeded sample image to `SUCCESSFUL`, and the VM reached `Running`. The run found the idle-policy requirement described above — the class of bug the local target structurally cannot catch |
 | `prod` | Builds and lints clean; every emitted field checked against the pinned CRD schemas. Not applied on its own — `prod-ha` covers the same resource set | Not run |
 | `prod-ha` | **Deployed end to end 2026-08-02.** `MicroVMReplicaSet` 2/2 ready, both VMs `Running`, `MicroVMNetwork` connector `ACTIVE`, `MicroVMClass` applied. Deployed over a live `minimal` estate, so the tier change is exercised too | Not run |
 

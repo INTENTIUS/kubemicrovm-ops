@@ -29,9 +29,9 @@ Ownership markers follow chant convention, `app.kubernetes.io/managed-by=chant` 
 
 | Environment | Position | Mechanism |
 |-------------|----------|-----------|
-| dev | observe | `chant lifecycle diff --live`, or a `WatchOp` on a schedule |
-| staging | reconcile | `ReconcileOp` opens PRs when CRs drift from source |
-| prod | authoritative | `ApplyOp` with `delete: "gated"` behind an approval gate |
+| dev | observe | `chant lifecycle diff --live` — seven drift categories, nothing mutated |
+| staging | reconcile | The diff names what moved; cloud back to code is a re-apply of the built manifest, code changes are a PR a human opens with the diff in hand |
+| prod | authoritative | `chant run all --components` — server-side apply, prunes scoped to owned-and-undeclared, Helm steps roll back the way Helm does |
 
 Nothing forces an environment up the dial. A team can run the kit purely as a typed authoring and lint layer and keep applying with their existing tooling, since the output is plain YAML.
 
@@ -39,6 +39,6 @@ Nothing forces an environment up the dial. A team can run the kit purely as a ty
 
 `chant lifecycle snapshot` reads both planes. CR spec and status from the cluster, stack state from CloudFormation. Status fields such as the VM state and endpoint are observational context in the diff, not declared fields. A VM that the operator auto-suspended shows as a status difference, not spec drift, and triggers nothing.
 
-## Reconcile direction
+## Foreign resources
 
-When staging reconciles cloud to code, the `reconcilePr` activity regenerates the affected TypeScript through `chant import`. For CRs this is ordinary k8s import. The interesting case is a VM created ad hoc through the `microvm` CLI. It appears as an unowned resource in the diff. The kit's default treats unowned CRs in managed namespaces as candidates for adoption PRs rather than deletion, since the CLI is a first-class part of the upstream workflow.
+The interesting drift case is a VM created ad hoc through the `microvm` CLI. It carries no chant ownership marker, so the diff reports it as foreign and the owned-only prune can never touch it — deletion requires a resource to be both owned and undeclared, and this one is neither. The kit's stance is adopt-don't-delete: the CLI is a first-class part of the upstream workflow, so a foreign VM in a managed namespace is normal, not an incident. Bringing it into source is a deliberate act — write the declaration, apply, and the marker changes hands — rather than something a reconciler does behind anyone's back.

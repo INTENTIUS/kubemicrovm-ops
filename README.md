@@ -62,7 +62,7 @@ An **adoption seam** is whether the kit provisions a prerequisite, references on
 | `test/fixtures/broken/` | One deliberately-wrong source per rule |
 | `ops/` | The install and teardown Ops — the ordering, as a durable workflow |
 | `scripts/install/` | The steps the Ops call, on either target |
-| `scripts/local/` | k3d + floci + m80, then the install Op |
+| `scripts/local/` | k3d + floci + m80, then the component run |
 | `scripts/live/` | Real AWS and a real EKS cluster |
 | `content/docs/` | Design documents |
 | `themes/hugo-book` | Theme (git submodule) |

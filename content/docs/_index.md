@@ -18,7 +18,7 @@ The kit, and the design behind it. [Quick start]({{< relref "quickstart" >}}) if
 | [Running the local target]({{< relref "local-target" >}}) | What k3d + floci + m80 stands up, and what the schemas do not tell you |
 | [Typed CRDs]({{< relref "typed-crds" >}}) | How the five CRDs become typed constructors |
 | [Lint rules]({{< relref "lint-rules" >}}) | What the kit checks at build time |
-| [Install Op]({{< relref "install-op" >}}) | How the estate deploys |
+| [The install]({{< relref "install-op" >}}) | How the estate deploys |
 | [Lifecycle]({{< relref "lifecycle" >}}) | How chant and the operator share the reconcile story |
 | [Operating with behold]({{< relref "behold" >}}) | What the estate looks like in the live control plane |
 | [Relation to MicrovmApp]({{< relref "microvm-app" >}}) | Where the operator-less path fits |

@@ -19,13 +19,13 @@ Extract CRD YAML from the KubeMicroVM Helm chart at the pinned release. Generate
 
 Typed port of the operator IAM template. Pod identity association as a declared resource. The reference-existing estate with parameters for cluster and VPC. Lint pack KMV001 through KMV008 plus post-synth checks. Exit criterion is the webhook-rejection test, a set of deliberately broken sources where every admission-time failure the upstream UAT suite exercises is caught at build time instead.
 
-## M3 — Install Op
+## M3 — The executed deploy
 
-The four-phase install Op, local executor first. Runs end to end against both targets: the local one first, since it gates every commit, then a real EKS cluster. Gated prod variant on Temporal. Teardown Op.
+Shipped as components rather than the four-phase Op this milestone was drafted around: the deploy is `chant run all --components`, with the ordering as declared dependencies and each step carrying its tool's own lifecycle. See [The install]({{< relref "install-op" >}}). Runs end to end against both targets — the local one gates every commit, and the cluster plane behind `clusterMode=provision` lets the kit stand up its own EKS cluster on real AWS. Teardown Op shipped.
 
 ## M4 — Lifecycle
 
-Snapshot and diff over both planes. `WatchOp` for dev, `ReconcileOp` for staging including the adopt-unowned-CR default, gated `ApplyOp` for prod. Exercised against live drift, a `kubectl edit`ed VM and a CLI-created VM.
+Snapshot and diff over both planes, exercised against live drift, a `kubectl edit`ed VM and a CLI-created VM. The dial per environment is on [Lifecycle]({{< relref "lifecycle" >}}) — observe through `lifecycle diff --live`, authoritative through the component run with owned-only prunes. (Earlier drafts named `WatchOp`/`ReconcileOp`/`ApplyOp` here; those never existed in chant, and the mechanisms that do exist replaced them.)
 
 ## M5 — Kit packaging
 
@@ -43,6 +43,6 @@ How the kit tracks KubeMicroVM releases. Manual pinned bumps first. The chant se
 
 ## Resolved
 
-Tiers and the deploy target are settled, on [Tiers and targets]({{< relref "tiers" >}}). Three named tiers rather than two shapes, a target axis orthogonal to them and selected by whether `AWS_ENDPOINT_URL` is set, and adoption seams as a third per-resource axis. That last one absorbs the old full-provision question: provisioning is built for the AWS-plane prerequisites the operator needs, since the local target validates them for free, and deferred for the EKS cluster and VPC, which stay reference-existing.
+Tiers and the deploy target are settled, on [Tiers and targets]({{< relref "tiers" >}}). Three named tiers rather than two shapes, a target axis orthogonal to them and selected by whether `AWS_ENDPOINT_URL` is set, and adoption seams as a third per-resource axis. That last one absorbs the old full-provision question: provisioning is built for the AWS-plane prerequisites the operator needs, since the local target validates them for free. The EKS cluster and VPC, deferred at first, followed once the real-AWS validation runs needed the kit to provision its own footing — `clusterMode=provision` on [Tiers and targets]({{< relref "tiers" >}}).
 
 The emulator question is settled. No emulator implements the MicroVM API anywhere, verified 2026-07-29 across moto, LocalStack, fakecloud, ministack, floci upstream and forks, and every public repo touching the API. The decision is both homes with different jobs, sequenced. A standalone emulator in the mudflaps mold comes first, owned cadence, small container the KubeMicroVM community can run next to k3d, full fidelity. A floci service module follows when the CloudFormation path matters, since `AWS::Lambda::MicrovmImage` emulation can only live where the CFN engine lives, scoped to what CFN provisioning needs. One language-agnostic conformance suite is built before either implementation and runs against both plus real AWS. The design lives in its own repo, [m80](https://github.com/INTENTIUS/m80). The kit's local end-to-end loop in M3 and M4 takes a dependency on its M3.

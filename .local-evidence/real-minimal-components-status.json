@@ -1,0 +1,104 @@
+[
+  {
+    "component": "aws-plane",
+    "env": "dev",
+    "recorded": null,
+    "build": null,
+    "componentBom": null,
+    "reconciliation": "unrecorded",
+    "detail": "live and chant-owned, but no release record exists — deployed outside the recorded path",
+    "live": true,
+    "stack": {
+      "name": "kubemicrovm-ops-aws-plane",
+      "status": "CREATE_COMPLETE",
+      "healthy": true
+    },
+    "resources": {
+      "total": 8,
+      "present": 0,
+      "absent": 0,
+      "unobserved": 8
+    }
+  },
+  {
+    "component": "cluster-plane",
+    "env": "dev",
+    "recorded": null,
+    "build": null,
+    "componentBom": null,
+    "reconciliation": "unrecorded",
+    "detail": "live and chant-owned, but no release record exists — deployed outside the recorded path",
+    "live": true,
+    "stack": {
+      "name": "kubemicrovm-ops-cluster-plane",
+      "status": "CREATE_COMPLETE",
+      "healthy": true
+    },
+    "resources": {
+      "total": 5,
+      "present": 0,
+      "absent": 0,
+      "unobserved": 5
+    }
+  },
+  {
+    "component": "golden-image",
+    "env": "dev",
+    "recorded": null,
+    "build": null,
+    "componentBom": null,
+    "reconciliation": "unrecorded",
+    "detail": "no release record and nothing observed live",
+    "live": false,
+    "stack": {
+      "name": "kubemicrovm-ops-golden-image"
+    }
+  },
+  {
+    "component": "local-substrate",
+    "env": "dev",
+    "recorded": null,
+    "build": null,
+    "componentBom": null,
+    "reconciliation": "unrecorded",
+    "detail": "no release record and nothing observed live",
+    "live": false,
+    "stack": {
+      "name": "kmv-local-substrate"
+    }
+  },
+  {
+    "component": "operator",
+    "env": "dev",
+    "recorded": null,
+    "build": null,
+    "componentBom": null,
+    "reconciliation": "unrecorded",
+    "detail": "no release record and nothing observed live",
+    "live": false,
+    "stack": {
+      "name": "cert-manager",
+      "status": "deployed",
+      "healthy": true
+    }
+  },
+  {
+    "component": "workload",
+    "env": "dev",
+    "recorded": null,
+    "build": null,
+    "componentBom": null,
+    "reconciliation": "unrecorded",
+    "detail": "no release record and nothing observed live",
+    "live": false,
+    "stack": {
+      "name": "kmv-workload"
+    },
+    "resources": {
+      "total": 4,
+      "present": 4,
+      "absent": 0,
+      "unobserved": 0
+    }
+  }
+]
