@@ -5,3 +5,4 @@ resources/
 .hugo_build.lock
 *.log
 ops/dist/
+.local-evidence/
