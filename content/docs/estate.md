@@ -15,8 +15,8 @@ What a KubeMicroVM consumer actually operates, split by plane. The kit declares 
 | Pod Identity association | `aws eks create-pod-identity-association` CLI call | aws lexicon (`AWS::EKS::PodIdentityAssociation`) |
 | Build role (`KubeMicroVMBuildRole`) | Manual | aws lexicon |
 | S3 bucket + code artifacts for image sources | Manual | aws lexicon |
-| VPC subnets + security groups for `MicroVMNetwork` egress | Existing VPC, referenced by ID | Parameters by default, declarable for full-provision tier |
-| EKS cluster | Existing | Parameter by default, declarable in the full-provision tier |
+| VPC subnets + security groups for `MicroVMNetwork` egress | Existing VPC, referenced by ID | Referenced by default; `clusterMode=provision` declares a 2-AZ `VpcDefault` and the readbacks point at it |
+| EKS cluster + node group | Existing | Referenced by default; `clusterMode=provision` declares the aws lexicon's `EksCluster` composite, node group sized by tier, pod-identity agent add-on included |
 
 The operator role is deployed once per region and shared across clusters through per-cluster pod identity associations. The kit preserves this shape. The role stack is a singleton component, associations are per-cluster.
 
@@ -43,4 +43,4 @@ These are the references that today exist only as strings and that the kit turns
 
 Three named tiers, `minimal`, `prod` and `prod-ha`, parameterised off `naming.tier` with no tier-specific files. Whether the kit provisions a given prerequisite or references one you already have is a separate per-resource setting, not a tier. Both are on [Tiers and targets]({{< relref "tiers" >}}), along with the local and real deploy targets that cut across them.
 
-The "Kit declaration" column above describes the reference-existing default. Where it says a resource is a parameter, that is a seam that can be switched to provision it instead.
+The "Kit declaration" column above describes the reference-existing default. Every referenced row is a seam that can be switched to provision instead — including the cluster itself: `KMV_CLUSTER_MODE=provision` makes the kit declare its own VPC and EKS cluster and stand the whole estate on them, which is how the real-AWS validation runs deploy. Full provision is no longer a deferred shape; it is a mode this page's table describes and the tier matrix tests.

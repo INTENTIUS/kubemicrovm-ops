@@ -125,7 +125,8 @@ export const MicrovmWorkload = Composite((props: MicrovmWorkloadProps) => {
 
   /**
    * The idle and lifetime policy, referenced by name from a VM's `className`.
-   * Absent at `minimal`, where VMs take the service defaults.
+   * Absent at `minimal`, whose idle policy rides the VM spec instead — the
+   * service has no defaults to take (see IdleProfile in ../lib/tiers.ts).
    *
    * Assembled here rather than in a helper like the connector and the replica
    * set below, because the lifetime cap is a *conditional property* and a
@@ -163,7 +164,20 @@ export const MicrovmWorkload = Composite((props: MicrovmWorkloadProps) => {
     region: props.region,
     tags: props.tags,
   };
-  const vmSpecWithClass = profileClass ? { ...vmSpecBase, className: props.names.vmClass } : vmSpecBase;
+  // The create call requires an idle policy from somewhere (see IdleProfile
+  // in ../lib/tiers.ts): by class name where the tier declares a class, flat
+  // on the VM spec where it does not.
+  const profileVmIdle = props.profile.vmIdle;
+  const vmSpecWithClass = profileClass
+    ? { ...vmSpecBase, className: props.names.vmClass }
+    : profileVmIdle
+      ? {
+          ...vmSpecBase,
+          maxIdleDurationSeconds: profileVmIdle.maxIdleDurationSeconds,
+          suspendedDurationSeconds: profileVmIdle.suspendedDurationSeconds,
+          autoResumeEnabled: profileVmIdle.autoResumeEnabled,
+        }
+      : vmSpecBase;
   const vmSpec = profileNetwork ? { ...vmSpecWithClass, networkRef: props.names.network } : vmSpecWithClass;
   const vmMetadata = { name: props.names.vm, namespace: props.namespace, labels: props.labels };
 

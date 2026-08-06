@@ -20,6 +20,13 @@ case "${args}" in
     *"config get-contexts"*)   exit 0 ;;
     *microvmimage*)            echo "${KSTUB_IMAGE:-SUCCESSFUL}"; exit 0 ;;
     *microvmnetwork*)          echo "${KSTUB_CONNECTOR:-ACTIVE}"; exit 0 ;;
+    *"conditions[*].message"*)
+        # The condition text a quota-refused VM carries, when a test asks for
+        # that estate (KSTUB_QUOTA=1). Anything else has unremarkable messages.
+        [ -n "${KSTUB_QUOTA:-}" ] &&
+            echo "Failed to create MicroVM: ServiceQuotaExceededException: The base maximum allocated memory limit has been reached for this account. (Status Code: 402)"
+        exit 0
+        ;;
     *"spec.replicas"*)         echo "2"; exit 0 ;;
     *"status.readyReplicas"*)  echo "${ready}"; exit 0 ;;
     *"get microvm"*)

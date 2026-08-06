@@ -70,6 +70,9 @@ wait_for() {
             return 0
         fi
         if [ -n "${dead}" ] && grep -qE "${dead}" <<< "${got}"; then
+            # Only VM waits can be quota-refused, and for them the flap makes
+            # the grace clock useless — check the condition, not the state.
+            case "${query}" in microvm\ *) quota_refused && fail_for_quota ;; esac
             bad_since="${bad_since:-${SECONDS}}"
             if [ "$((SECONDS - bad_since))" -ge "${GRACE}" ]; then
                 fail "${what} sat in a failed state for ${GRACE}s with no retry moving it: $(echo ${got})"
@@ -86,6 +89,23 @@ wait_for() {
 vm_states() {
     kubectl -n "${NS}" get microvm -o jsonpath='{range .items[*]}{.status.state}{"\n"}{end}' 2>/dev/null |
         grep -v '^$' || true
+}
+
+# A quota refusal is the service's own verdict, and unlike a failed state it
+# is not something the operator can retry past: the VM flaps Pending → Failed
+# → Pending against the same 402, the grace clock resets on every flap, and
+# the wait runs to timeout on an answer the service gave in the first minute.
+# prod-ha found this wall for real — 2 x 4096 MiB against a fresh account's
+# 8192 MiB ceiling. account-fit.sh names the ceiling and the ways past it.
+quota_refused() {
+    kubectl -n "${NS}" get microvm \
+        -o jsonpath='{range .items[*]}{.status.conditions[*].message}{"\n"}{end}' 2>/dev/null |
+        grep -q "ServiceQuotaExceededException"
+}
+
+fail_for_quota() {
+    bash "$(dirname "$0")/account-fit.sh" >&2 || true
+    fail "the service refused the estate for account quota (ServiceQuotaExceededException) — retrying cannot raise the ceiling"
 }
 
 count_state() { vm_states | grep -cx "$1" || true; }
@@ -135,6 +155,7 @@ wait_for_floor() {
         # wait_for, and the same reset when the count moves back to zero.
         failed="$(count_state Failed)"
         if [ "${failed}" -gt 0 ]; then
+            quota_refused && fail_for_quota
             failed_since="${failed_since:-${SECONDS}}"
             if [ "$((SECONDS - failed_since))" -ge "${GRACE}" ]; then
                 fail "the replica floor cannot fill: ${failed} VM(s) sat in Failed for ${GRACE}s with no retry moving them"

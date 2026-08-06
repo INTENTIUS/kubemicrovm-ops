@@ -24,7 +24,7 @@ aws-plane ──▶ operator ──▶ workload
     └──────▶ golden-image
 ```
 
-That is the install Op's ordering drawn as a dependency rather than as a sequence, and it is the same ordering for the same reasons — the operator's first reconcile passes a build role that has to exist, and a custom resource cannot apply before the chart's CRDs and webhook are up. `golden-image` branches off the AWS plane because the operator-less path never reaches Kubernetes at all, which is the whole of what distinguishes it.
+That is the install's ordering drawn as a dependency rather than as a sequence, and it is the same ordering for the same reasons — the operator's first reconcile passes a build role that has to exist, and a custom resource cannot apply before the chart's CRDs and webhook are up. `golden-image` branches off the AWS plane because the operator-less path never reaches Kubernetes at all, which is the whole of what distinguishes it.
 
 Each component is named for the directory it owns, and that is load-bearing rather than tidy: behold correlates a resource to a component by the source file it was declared in. `operator` owns no resources and should not — the chart's objects belong to Helm, are never marked `app.kubernetes.io/managed-by=chant`, and are therefore never touched by a chant prune. It is in the graph for the edge, not the inventory.
 
@@ -41,22 +41,18 @@ With `--env` and read credentials, behold overlays live status on the declared t
 
 The status-versus-spec split from the [Lifecycle]({{< relref "lifecycle" >}}) page carries through. A VM the operator auto-suspended is a status change on a managed node, visible in the inspect pane, not drift. The graph does not turn red because the operator did its job.
 
-Polling (`--poll`) keeps the overlay current between deploys, and the kit's `WatchOp` covers the same ground on a Temporal schedule for environments where nobody has a browser open.
+Polling (`--poll`) keeps the overlay current between deploys, and `chant lifecycle diff --live` on a schedule covers the same ground for environments where nobody has a browser open.
 
-## Actions are the kit's Ops
+## Actions are the kit's own flows
 
-behold's write gestures only trigger Ops the project committed, running on the project's executor. The kit's Op set therefore defines exactly which buttons exist.
+behold's write gestures only trigger what the project committed, running on the project's executor. The kit's runnable set therefore defines exactly which buttons exist.
 
-| behold gesture | Kit Op | Effect |
-|----------------|--------|--------|
-| Run | `kubemicrovm-install` | The four-phase install against a cluster |
-| Sync | `ApplyOp` | Push declared source, deletes gated |
-| Apply (gate signal) | the `gate-workloads` gate | Human approval for the prod workloads phase |
-| Adopt (per foreign node) | `ReconcileOp` | Open a PR importing a CLI-created VM into source |
+| behold gesture | Kit flow | Effect |
+|----------------|----------|--------|
+| Run | `all --components` | The component waves against a cluster — the install, resolved in dependency order |
+| Run | `kubemicrovm-teardown` | Estate, operator and AWS plane removed in reverse order |
 
-Adopt is the flow to highlight. The upstream `microvm` CLI is a first-class way to create VMs, so foreign CRs in managed namespaces are normal, not an incident. In behold that VM is a visibly foreign node with an Adopt button, and the outcome is a reviewable PR that brings it into source. This is the kit's adopt-don't-delete default made tangible.
-
-The deployment lanes read Temporal history, so a gated prod install shows its phase progression on the timeline, including time spent waiting on the approval gate.
+Adopt is the flow to highlight. The upstream `microvm` CLI is a first-class way to create VMs, so foreign CRs in managed namespaces are normal, not an incident. In behold that VM is a visibly foreign node, and adoption is the deliberate act the [Lifecycle]({{< relref "lifecycle" >}}) page describes: write the declaration, apply, and the ownership marker changes hands. The owned-only prune can never touch what nobody adopted.
 
 ## Least privilege
 

@@ -5,9 +5,12 @@
 #   ./scripts/local/account-fit.sh --strict # exit 1 if it does not fit
 #
 # The MicroVMs service caps how much memory an account may have allocated
-# across running VMs at once. A fresh account's ceiling is 4096 MiB — recorded
-# from a real one by m80, not a guess — and at the 2048 MiB default profile
-# that is two concurrent MicroVMs. A third gets 402 ServiceQuotaExceededException.
+# across running VMs at once. A fresh account's ceiling is 8192 MiB — read
+# live 2026-08-06 from Service Quotas ("Max allocated MicroVM memory", 8 GB
+# applied; the on-paper default is 1024 GB, so new accounts run under a
+# sub-default cap that only a support case can raise. m80 recorded 4096 from
+# an earlier account, so the ramp varies). prod-ha's 2 x 4096 MiB was refused
+# at exactly this wall: 402 ServiceQuotaExceededException on the second VM.
 #
 # This is the local target's whole reason for existing, applied to a cost: the
 # estate that does not fit is discovered here in seconds, rather than after a
@@ -20,18 +23,21 @@
 # Written for bash 3.2, which is what macOS ships.
 set -uo pipefail
 . "$(dirname "$0")/../lib-kube.sh"
-# Local-target scripts know their own cluster. The install scripts under
-# scripts/install/ deliberately do not default this: they are shared with the
-# live target, where a k3d context would be the wrong cluster entirely.
-KMV_KUBE_CONTEXT="${KMV_KUBE_CONTEXT:-k3d-${CLUSTER:-kubemicrovm-local}}"
+# Local-target scripts know their own cluster — but only on the local target.
+# assert-converged.sh calls this on the real target too, where the ambient
+# context (the one cluster-kubeconfig.sh set) is the cluster and a forced k3d
+# context makes every read fail. Same target-awareness as assert-converged.
+if [ -n "${AWS_ENDPOINT_URL:-}" ]; then
+    KMV_KUBE_CONTEXT="${KMV_KUBE_CONTEXT:-k3d-${CLUSTER:-kubemicrovm-local}}"
+fi
 
 STRICT=0
 [ "${1:-}" = "--strict" ] && STRICT=1
 
 NS="${KMV_NAMESPACE:-microvm-demo}"
-# The ceiling a fresh AWS account has, recorded live by m80. Override to
-# whatever your account was raised to.
-ACCOUNT_CEILING_MIB="${ACCOUNT_CEILING_MIB:-4096}"
+# The ceiling a fresh AWS account has, read live from Service Quotas
+# 2026-08-06. Override to whatever your account was raised to.
+ACCOUNT_CEILING_MIB="${ACCOUNT_CEILING_MIB:-8192}"
 
 . "$(dirname "$0")/lib-estate.sh"
 

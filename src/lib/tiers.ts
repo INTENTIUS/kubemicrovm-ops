@@ -40,9 +40,24 @@ export interface ImageProfile {
 }
 
 /**
+ * The idle policy a VM cannot be created without. `CreateMicroVm` refuses a
+ * null `idlePolicy.maxIdleDurationSeconds` or `.suspendedDurationSeconds`
+ * with a ValidationException — found on the real service 2026-08-06, after
+ * m80 had accepted the nulls for a month. There is no service default to
+ * take, so every tier declares one: the production tiers through their
+ * `MicroVMClass`, `minimal` flat on the VM spec, where the CRD carries the
+ * same three fields.
+ */
+export interface IdleProfile {
+  maxIdleDurationSeconds: number;
+  suspendedDurationSeconds: number;
+  autoResumeEnabled: boolean;
+}
+
+/**
  * `MicroVMClass.spec` — the idle and lifetime policy a VM inherits by name.
- * Absent at `minimal`, where VMs run with the service defaults and no class is
- * declared.
+ * Absent at `minimal`, which declares no class and carries its idle policy
+ * (see `IdleProfile`) on the VM itself.
  */
 export interface ClassProfile {
   maxIdleDurationSeconds: number;
@@ -101,6 +116,13 @@ export interface TierProfile {
   intent: string;
   image: ImageProfile;
   class?: ClassProfile;
+  /**
+   * The VM-level idle policy for tiers that declare no class. Exactly one of
+   * `class` and `vmIdle` must be present — the create call requires an idle
+   * policy from somewhere, and `test/tier-matrix.test.ts` enforces the
+   * either-or.
+   */
+  vmIdle?: IdleProfile;
   network?: NetworkProfile;
   workload: WorkloadProfile;
   /**
@@ -120,6 +142,15 @@ const PROFILES: Record<Tier, TierProfile> = {
       maxVersionsToKeep: 2,
       buildTimeoutSeconds: 600,
       autoActivate: true,
+    },
+    // Same numbers as the production classes, for the same reasons: an
+    // evaluation VM nobody touches for fifteen minutes suspends, traffic
+    // resumes it. On the VM rather than in a class because the create call
+    // requires the policy and `minimal` declares no class to carry it.
+    vmIdle: {
+      maxIdleDurationSeconds: 900,
+      suspendedDurationSeconds: 3600,
+      autoResumeEnabled: true,
     },
     workload: { kind: "MicroVM" },
     quotaDiscovery: false,
