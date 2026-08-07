@@ -13,6 +13,8 @@ cd kubemicrovm-ops
 ./go
 ```
 
+To make the estate *yours* rather than a checkout of ours, start from **[Use this template](https://github.com/INTENTIUS/kubemicrovm-ops/generate)** instead of cloning: a clean-history copy you own outright, because an estate is a thing you own, not a dependency. Everything on this page works identically either way.
+
 **If you have Docker, that is everything.** `./go` checks the seven other tools this needs — k3d, kubectl, helm, the AWS CLI, node, npm and `just` — and offers to install whichever are missing, asking before it touches anything. It will not install Docker: that needs a daemon, and on Linux a group membership that does not take effect until you log out, so a script claiming to have installed it would hand you something that does not work.
 
 Everything `./go` does is a documented command in the order you would run it — `just prereqs`, `npm install`, `just minimal-local-e2e`. If you would rather run them yourself, run them yourself.
