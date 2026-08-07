@@ -30,7 +30,7 @@ If the service follows the normal AWS arc, Terraform lands, ACK matures, regions
 
 ## Risks and hedges
 
-AWS could grow the ACK controller or ship a first-party product layer that outruns KubeMicroVM. The hedge is structural. The kit's CRD-typing path works identically against ACK's CRDs, same k8s lexicon codegen, so typing both controllers keeps the kit relevant if the community operator stalls. Carried as an open question on the [Roadmap]({{< relref "roadmap" >}}).
+AWS could grow the ACK controller or ship a first-party product layer that outruns KubeMicroVM. The hedge is structural. The kit's CRD-typing path works identically against ACK's CRDs, same k8s lexicon codegen, so typing both controllers keeps the kit relevant if the community operator stalls. Carried as [#74](https://github.com/INTENTIUS/kubemicrovm-ops/issues/74).
 
 AgentCore will absorb the slice of the agent market that does not want to manage VMs at all. That slice was never the kit's audience, the kit exists for teams who chose the Kubernetes resource model on purpose.
 

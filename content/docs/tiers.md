@@ -98,7 +98,7 @@ This replaces the two-shape split the [estate]({{< relref "estate" >}}) page ori
 
 ### The full-provision decision
 
-The [roadmap]({{< relref "roadmap" >}}) left this open, leaning reference-existing only until someone asked. The reasoning behind that lean was cost: every test of a provisioning path meant standing up an EKS cluster. Then the real-AWS validation runs needed the kit to stand on infrastructure it declared itself, and the lean reversed.
+This was left open at first, leaning reference-existing only until someone asked. The reasoning behind that lean was cost: every test of a provisioning path meant standing up an EKS cluster. Then the real-AWS validation runs needed the kit to stand on infrastructure it declared itself, and the lean reversed.
 
 `provision` exists for every prerequisite now, split across two stacks. The AWS plane provisions the S3 bucket, the build role, the operator role and its pod identity association — the resources their `setup-test-env.sh` creates by hand today. The cluster plane, behind `clusterMode` (`KMV_CLUSTER_MODE`), provisions the 2-AZ VPC and the EKS cluster with its tier-sized node group, from the aws lexicon's own `VpcDefault` and `EksCluster` composites. Downstream waves read the cluster's outputs back off the deployed stack, so nothing is pasted between the planes.
 
