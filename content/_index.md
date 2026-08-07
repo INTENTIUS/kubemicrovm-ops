@@ -28,8 +28,10 @@ MicroVMs API; the cluster, operator, CRDs and webhooks are all real. If
 anything looks wrong, `just doctor` names the broken piece and the command
 that fixes it.
 
-The production shape is the same source tree:
+The production shape is the same source tree. Apply does not prune, so retire
+the minimal tier's VM first — this is exactly the sequence CI runs:
 
+  kubectl -n microvm-demo delete microvm --all
   just apply-tier prod-ha && just validate prod-ha
 
 which exercises the replica floor, the VPC connector, and a live tier change —
