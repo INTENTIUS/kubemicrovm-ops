@@ -104,6 +104,18 @@ This was left open at first, leaning reference-existing only until someone asked
 
 `clusterMode` defaults to `reference-existing`. Nobody adopting this kit is standing up their first cluster with it, and the local target's k3d cluster arrives by a different door. `provision` is how the kit deploys itself onto real AWS from nothing.
 
+## The path, drawn
+
+```mermaid
+flowchart LR
+    READ["Read this page<br/><i>ten minutes</i>"] --> LOCAL["Local<br/>./go --yes<br/><b>free, every commit</b>"]
+    LOCAL --> MIN["minimal on real AWS<br/><b>~$2, ~40 min</b><br/>real IAM, real build, real quotas"]
+    MIN --> PROD["prod<br/><b>~$2</b><br/>class + connector ACTIVE"]
+    PROD --> HA["prod-ha<br/><b>~$2 + the quota</b><br/>floor of 2, two subnets"]
+```
+
+One source tree end to end; each step proves what the one before could not, and the table below records which have actually been run.
+
 ## What has been validated
 
 Filled in as each cell is actually run, rather than written from what the code implies.
