@@ -102,6 +102,8 @@ This was left open at first, leaning reference-existing only until someone asked
 
 `provision` exists for every prerequisite now, split across two stacks. The AWS plane provisions the S3 bucket, the build role, the operator role and its pod identity association — the resources their `setup-test-env.sh` creates by hand today. The cluster plane, behind `clusterMode` (`KMV_CLUSTER_MODE`), provisions the 2-AZ VPC and the EKS cluster with its tier-sized node group, from the aws lexicon's own `VpcDefault` and `EksCluster` composites. Downstream waves read the cluster's outputs back off the deployed stack, so nothing is pasted between the planes.
 
+When the kit provisions, the posture is the kit's: the connector gets a dedicated security group whose rules *are* the egress policy — deny-all except the ports `connectorEgressPorts` declares (default 443) — and the VPC carries REJECT-only flow logs, the record of what that policy refused. Referenced infrastructure gets no posture applied: yours is yours.
+
 `clusterMode` defaults to `reference-existing`. Nobody adopting this kit is standing up their first cluster with it, and the local target's k3d cluster arrives by a different door. `provision` is how the kit deploys itself onto real AWS from nothing.
 
 ## The path, drawn

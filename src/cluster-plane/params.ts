@@ -50,3 +50,12 @@ export function nodegroupShape(t: Tier): { desiredSize: number; maxSize: number 
   if (t === "prod") return { desiredSize: 2, maxSize: 3 };
   return { desiredSize: 2, maxSize: 4 };
 }
+
+/**
+ * The provisioned connector SG's egress allows, parsed from the declared
+ * param. `?? "443"` mirrors the declared default, the safety-net convention.
+ */
+export const connectorEgressPorts: number[] = ((params.connectorEgressPorts as string | undefined) ?? "443")
+  .split(",")
+  .map((p) => Number(p.trim()))
+  .filter((n) => Number.isInteger(n) && n > 0);

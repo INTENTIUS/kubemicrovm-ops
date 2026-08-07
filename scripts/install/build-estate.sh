@@ -59,9 +59,12 @@ CLUSTER_STACK="${CLUSTER_STACK:-kubemicrovm-ops-cluster-plane}"
 if [ "${KMV_CLUSTER_MODE:-reference-existing}" = "provision" ]; then
     SUBNETS_QUERY="StackResources[?LogicalResourceId=='networkPrivateSubnet1'||LogicalResourceId=='networkPrivateSubnet2'].PhysicalResourceId"
     KMV_SUBNET_IDS="${KMV_SUBNET_IDS:-$(aws cloudformation describe-stack-resources --stack-name "${CLUSTER_STACK}"         --query "${SUBNETS_QUERY}" --output text | tr '\t' ',')}"
-    # The control plane's own security group, from the cluster itself.
-    CLUSTER_FOR_SG="${KMV_CLUSTER_NAME:-$(aws cloudformation describe-stack-resources --stack-name "${CLUSTER_STACK}"         --query "StackResources[?ResourceType=='AWS::EKS::Cluster'].PhysicalResourceId | [0]" --output text)}"
-    KMV_SECURITY_GROUP_IDS="${KMV_SECURITY_GROUP_IDS:-$(aws eks describe-cluster --name "${CLUSTER_FOR_SG}"         --query "cluster.resourcesVpcConfig.clusterSecurityGroupId" --output text)}"
+    # The declared connector SG (#86): deny-all except the declared ports.
+    # The cluster's own SG served here before, which was functional and wide
+    # open — the kit provisioned this VPC, so the posture is the kit's to set.
+    KMV_SECURITY_GROUP_IDS="${KMV_SECURITY_GROUP_IDS:-$(aws cloudformation describe-stack-resources --stack-name "${CLUSTER_STACK}" \
+        --query "StackResources[?LogicalResourceId=='connectorSecurityGroup'].PhysicalResourceId | [0]" --output text)}"
+
 elif [ -n "${AWS_ENDPOINT_URL:-}" ]; then
     KMV_SUBNET_IDS="${KMV_SUBNET_IDS:-subnet-local-a,subnet-local-b}"
     KMV_SECURITY_GROUP_IDS="${KMV_SECURITY_GROUP_IDS:-sg-local}"
