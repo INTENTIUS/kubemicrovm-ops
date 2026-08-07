@@ -33,6 +33,10 @@ The operator role is deployed once per region and shared across clusters through
 | `MicroVMClass` | Named runtime profile, referenced by VMs |
 | Consumer pods with `lambda.microvm.auth` annotations | Token injection targets |
 
+## What the snapshot keeps
+
+A MicroVM image is a snapshot, and everything that goes into building it stays in it: the artifact's contents, the Dockerfile's `ENV` lines, and — on the CloudFormation path, where `AWS::Lambda::MicrovmImage` accepts `EnvironmentVariables` — anything passed as image environment. Every VM cloned from the image carries all of it, for as many versions as `maxVersionsToKeep` retains. A secret placed in any of those is a secret at rest in an artifact nothing rotates; KMV023 refuses the obviously-named ones at build time, and the rest is on the artifact's author. Secrets belong on the runtime side — the operator's token delivery, or your own at `RunMicrovm` time — never in the image.
+
 ## Cross-plane edges
 
 These are the references that today exist only as strings and that the kit turns into checked edges.
