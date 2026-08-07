@@ -25,7 +25,7 @@ Shipped as components rather than the four-phase Op this milestone was drafted a
 
 ## M4 — Lifecycle
 
-Snapshot and diff over both planes, exercised against live drift, a `kubectl edit`ed VM and a CLI-created VM. The dial per environment is on [Lifecycle]({{< relref "lifecycle" >}}) — observe through `lifecycle diff --live`, authoritative through the component run with owned-only prunes. (Earlier drafts named `WatchOp`/`ReconcileOp`/`ApplyOp` here; those never existed in chant, and the mechanisms that do exist replaced them.)
+Snapshot and diff over both planes, exercised against live drift, a `kubectl edit`ed VM and a CLI-created VM. The dial per environment is on [Lifecycle]({{< relref "lifecycle" >}}) — observe through `lifecycle diff --live`, authoritative through the component run with owned-only prunes. (Earlier drafts named `WatchOp`/`ReconcileOp`/`ApplyOp` here. chant's temporal lexicon does ship all three — fountain-ops runs an `ApplyOp` today — but this kit's lifecycle settled on the component run and the diff instead: fewer moving parts for the same dial, and nothing here needs a durable executor.)
 
 ## M5 — Kit packaging
 
