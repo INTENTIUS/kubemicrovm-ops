@@ -113,6 +113,29 @@ export default {
       required: false,
     },
 
+    // ── The CI plane (src/ci-plane) — bootstrap, never in `run all` ─────
+    // The OIDC provider and role real-e2e.yml assumes (#70). Off by default:
+    // this is a once-per-account fixture deployed with human credentials —
+    // the CI role cannot create itself — via `just setup-real-ci`.
+    ciPlaneMode: {
+      type: "string",
+      enum: ["provision", "omit"],
+      default: "omit",
+      env: "KMV_CI_PLANE",
+    },
+    // Account-global, and possibly already there: an account with any other
+    // GitHub OIDC integration already has the provider.
+    oidcProviderMode: {
+      type: "string",
+      enum: ["provision", "reference-existing"],
+      default: "provision",
+      env: "KMV_OIDC_PROVIDER_MODE",
+    },
+    // The sub claim the trust policy pins: only workflows of this repo,
+    // running in this environment, can assume the role.
+    githubRepo: { type: "string", default: "INTENTIUS/kubemicrovm-ops", env: "KMV_GITHUB_REPO" },
+    githubEnvironment: { type: "string", default: "real-aws", env: "KMV_GITHUB_ENVIRONMENT" },
+
     // ── The operator-less path (src/golden-image) ───────────────────────
     // `MicrovmApp` builds an image through CloudFormation with no cluster
     // involved. Off by default: a deployment that declares its own

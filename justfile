@@ -123,6 +123,11 @@ local-down:
 # Note: this is what an adopter on EKS runs. local-up.sh calls it after
 # standing up the emulators, so both targets reach the same four phases.
 
+# One-time account setup for real-e2e.yml: the declared CI role + the gated
+# GitHub environment. Needs your own AWS and gh credentials — that is the point.
+setup-real-ci *args:
+    bash scripts/setup/real-ci.sh {{args}}
+
 # The component run on its own, against a cluster and endpoints that exist.
 install:
     npx chant run all --components --env "${KMV_ENV:-dev}"
