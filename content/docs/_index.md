@@ -22,4 +22,4 @@ The kit, and the design behind it. [Quick start]({{< relref "quickstart" >}}) if
 | [Lifecycle]({{< relref "lifecycle" >}}) | How chant and the operator share the reconcile story |
 | [Operating with behold]({{< relref "behold" >}}) | What the estate looks like in the live control plane |
 | [Relation to MicrovmApp]({{< relref "microvm-app" >}}) | Where the operator-less path fits |
-| [Roadmap]({{< relref "roadmap" >}}) | Milestones and sequencing |
+| [Issues](https://github.com/INTENTIUS/kubemicrovm-ops/issues) | What is planned or open — the only place that lives |
