@@ -417,3 +417,52 @@ export const namespacePurposeCheck: PostSynthCheck = {
       }));
   },
 };
+
+/**
+ * KMV023 — nothing secret-shaped in an image's environment, because the
+ * environment is the snapshot.
+ *
+ * A MicroVM image's EnvironmentVariables persist in the built snapshot, and
+ * every VM cloned from it carries them for the image's whole life —
+ * `maxVersionsToKeep` deep. A secret passed here is not configuration, it is
+ * a secret stored at rest in an artifact nothing rotates. The k8s CRD has no
+ * environment field, so this reads the CFN plane, where
+ * `AWS::Lambda::MicrovmImage` does; the golden-image path and any adopter
+ * extension of it are the audience.
+ *
+ * Name-shaped detection, deliberately: a value cannot be judged (it may be a
+ * reference), but a key named SECRET is making a claim about itself.
+ */
+const SECRET_SHAPED = /(SECRET|TOKEN|PASSWORD|PASSWD|API_?KEY|PRIVATE_?KEY|CREDENTIAL)/i;
+
+export const snapshotSecretsCheck: PostSynthCheck = {
+  id: "KMV023",
+  description: "No secret-shaped environment variable is baked into a MicroVM image snapshot",
+  check(ctx) {
+    const out: PostSynthDiagnostic[] = [];
+    for (const [lexicon, text] of ctx.outputs) {
+      if (lexicon !== "aws" || typeof text !== "string") continue;
+      let template: { Resources?: Record<string, { Type?: string; Properties?: { EnvironmentVariables?: Array<{ Name?: string }> } }> };
+      try {
+        template = JSON.parse(text);
+      } catch {
+        continue; // not a CFN template — nothing here to check
+      }
+      for (const [id, resource] of Object.entries(template.Resources ?? {})) {
+        if (resource.Type !== "AWS::Lambda::MicrovmImage") continue;
+        for (const envVar of resource.Properties?.EnvironmentVariables ?? []) {
+          if (envVar.Name && SECRET_SHAPED.test(envVar.Name)) {
+            out.push({
+              checkId: "KMV023",
+              severity: "error",
+              message: `MicrovmImage "${id}" bakes "${envVar.Name}" into its snapshot — image environment persists in every VM cloned from it, for every retained version. Deliver secrets at runtime instead.`,
+              entity: id,
+              lexicon: "aws",
+            });
+          }
+        }
+      }
+    }
+    return out;
+  },
+};

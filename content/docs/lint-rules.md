@@ -46,6 +46,7 @@ These run after synthesis, over every emitted document. `test/fixtures/estate-br
 | KMV001 | Every custom resource sits in a namespace this build declares with `lambda.aws.amazon.com/manage-microvms=true` | The admission webhook rejects the resource and names the *resource*, when what is wrong is a `Namespace` in another file |
 | KMV002 | `imageRef`, `className` and `networkRef` resolve to something declared in the same namespace | Nothing. The resource applies cleanly and never becomes ready, with no error anywhere |
 | KMV020 | An image nothing references. Warning, not error | Nothing — a built image that never runs |
+| KMV023 | No secret-shaped environment variable on a `MicrovmImage` (CFN plane — the k8s CRD has no environment field) | Nothing visible — the value persists in the snapshot, in every VM cloned from it, for every retained version |
 
 KMV005 is the cross-plane rule and the main reason the kit declares both planes in one chant project. It only fires on a whole-project build (`chant build src`), where both lexicons' outputs are in one context; a per-stack build sees one plane and the rule skips rather than report what it cannot know. It also skips when the project declares no roles at all, which is the `reference-existing` seam rather than a mistake. What it cannot yet tell apart is a project that provisions some roles and deliberately references an external build role — that combination would be flagged.
 

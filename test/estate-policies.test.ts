@@ -126,3 +126,18 @@ describe("and the kit's own estate passes at every tier", () => {
     expect(result.output).not.toContain("KMV0");
   });
 });
+
+describe("a secret baked into an image snapshot fails the build (KMV023)", () => {
+  const result = build("test/fixtures/estate-snapshot-secret");
+
+  test("the build refuses, naming the variable and the persistence", () => {
+    expect(result.ok).toBe(false);
+    expect(result.output).toContain("KMV023");
+    expect(result.output).toContain('"DATABASE_PASSWORD"');
+    expect(result.output).toMatch(/persists in every VM cloned from it/);
+  });
+
+  test("an unremarkable variable on the same image is not flagged", () => {
+    expect(result.output).not.toContain("LOG_LEVEL");
+  });
+});
