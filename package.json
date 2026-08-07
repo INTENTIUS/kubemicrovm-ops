@@ -3,7 +3,7 @@
   "version": "0.0.0",
   "private": true,
   "type": "module",
-  "description": "KubeMicroVM adoption kit on chant — three tiers (minimal/prod/prod-ha) over two deploy targets (local floci+m80+k3d, or real AWS+EKS).",
+  "description": "KubeMicroVM adoption kit on chant \u2014 three tiers (minimal/prod/prod-ha) over two deploy targets (local floci+m80+k3d, or real AWS+EKS).",
   "scripts": {
     "tsc": "tsc --noEmit",
     "lint": "chant lint .",
@@ -17,11 +17,12 @@
     "synth": "npm run synth:aws-plane && npm run synth:workload"
   },
   "dependencies": {
-    "@intentius/chant": "^0.41.12",
-    "@intentius/chant-lexicon-aws": "^0.41.12",
-    "@intentius/chant-lexicon-helm": "^0.41.12",
-    "@intentius/chant-lexicon-k8s": "^0.41.12",
-    "@intentius/chant-lexicon-temporal": "^0.41.12"
+    "@intentius/chant": "^0.41.15",
+    "@intentius/chant-lexicon-aws": "^0.41.15",
+    "@intentius/chant-lexicon-helm": "^0.41.15",
+    "@intentius/chant-lexicon-k8s": "^0.41.15",
+    "@intentius/chant-lexicon-temporal": "^0.41.15",
+    "@intentius/chant-lexicon-k3d": "^0.41.15"
   },
   "devDependencies": {
     "@types/js-yaml": "^4.0.9",
