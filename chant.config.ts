@@ -104,6 +104,12 @@ export default {
       env: "KMV_CLUSTER_MODE",
     },
     clusterName: { type: "string", required: false, env: "KMV_CLUSTER_NAME" },
+    // The provisioned connector security group's egress, as comma-separated
+    // TCP ports. The SG's rules ARE the egress policy (deny-all except what
+    // is named here); 443 covers registries, package mirrors and Bedrock.
+    // Only read when clusterMode=provision — reference-existing brings its
+    // own SGs and the kit applies no posture to what it did not create.
+    connectorEgressPorts: { type: "string", default: "443", env: "KMV_CONNECTOR_EGRESS_PORTS" },
     subnetIds: { type: "string", required: false, env: "KMV_SUBNET_IDS" },
     securityGroupIds: { type: "string", required: false, env: "KMV_SECURITY_GROUP_IDS" },
     // No declared default: the sensible one depends on the target, and

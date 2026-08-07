@@ -27,7 +27,7 @@ describe("cluster plane", () => {
     const count = (type: string) => Object.values(t.Resources).filter((r) => r.Type === type).length;
     expect(count("AWS::EKS::Cluster")).toBe(1);
     expect(count("AWS::EKS::Nodegroup")).toBe(1);
-    expect(count("AWS::IAM::Role")).toBe(2);
+    expect(count("AWS::IAM::Role")).toBe(3); // cluster, nodes, and flow-log delivery (#86)
     expect(count("AWS::EC2::Subnet")).toBe(4); // public+private × 2 AZs
     expect(count("AWS::EC2::NatGateway")).toBe(1);
   });
@@ -57,5 +57,30 @@ describe("cluster plane", () => {
         maxBuffer: 16 * 1024 * 1024,
       }),
     ).toThrow();
+  });
+});
+
+describe("the provisioned egress posture (#86)", () => {
+  const t = build("minimal");
+  const ofType = (type: string) => Object.values(t.Resources).filter((r) => r.Type === type);
+
+  test("the connector SG denies all egress except the declared ports, and has no ingress", () => {
+    const sg = ofType("AWS::EC2::SecurityGroup")[0];
+    const egress = sg.Properties.SecurityGroupEgress as Array<Record<string, unknown>>;
+    // Declaring ANY egress removes CloudFormation's implicit allow-all —
+    // the presence of the explicit list IS the deny-all.
+    expect(egress.length).toBeGreaterThan(0);
+    for (const rule of egress) {
+      expect(rule.IpProtocol).toBe("tcp");
+      expect(rule.FromPort).toBe(rule.ToPort);
+    }
+    expect(sg.Properties.SecurityGroupIngress).toBeUndefined();
+  });
+
+  test("REJECT flow logs ride the VPC, delivered by a role scoped to their log group", () => {
+    const fl = ofType("AWS::EC2::FlowLog")[0];
+    expect(fl.Properties.TrafficType).toBe("REJECT");
+    expect(fl.Properties.LogDestinationType).toBe("cloud-watch-logs");
+    expect(ofType("AWS::Logs::LogGroup").length).toBe(1);
   });
 });
