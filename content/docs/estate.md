@@ -41,6 +41,33 @@ A MicroVM image is a snapshot, and everything that goes into building it stays i
 
 These are the references that today exist only as strings and that the kit turns into checked edges.
 
+```mermaid
+flowchart LR
+    subgraph AWS["AWS plane — CloudFormation"]
+        BUCKET["S3 artifact bucket"]
+        BUILD["Build role"]
+        OPROLE["Operator role<br/>+ 3 managed policies"]
+        PIA["Pod identity<br/>association"]
+    end
+    subgraph K8S["Kubernetes plane — the operator's CRs"]
+        NS["Namespace<br/>manage-microvms=true"]
+        IMG["MicroVMImage"]
+        VM["MicroVM /<br/>MicroVMReplicaSet"]
+        NET["MicroVMNetwork"]
+        SA["Operator's<br/>ServiceAccount"]
+    end
+    IMG -- "source: s3 bucket + key" --> BUCKET
+    IMG -- "buildRoleArn" --> BUILD
+    NET -- "operatorRoleArn" --> OPROLE
+    NET -- "subnet + SG ids" --> VPC["Your VPC<br/>(or the provisioned one)"]
+    PIA -- "binds" --> SA
+    PIA -- "grants" --> OPROLE
+    VM --> IMG
+    VM -.-> NET
+```
+
+Each labelled edge is a string on one side naming a resource on the other — the places where a typo deploys cleanly and fails at runtime, and exactly what the lint pack checks at build time.
+
 `MicroVMImage.spec.buildRoleArn` points at the build role. `MicroVMImage.spec.source` points at an S3 bucket and key. `MicroVMNetwork` references subnet and security group IDs. The pod identity association binds the operator's service account name and namespace to the operator role ARN. Each of these crosses the plane boundary, and each is a place where a typo deploys cleanly on one side and fails at runtime on the other.
 
 ## Tiers

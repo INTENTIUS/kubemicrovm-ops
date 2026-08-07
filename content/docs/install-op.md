@@ -25,6 +25,17 @@ Both run on the local executor with no Temporal server, and against either targe
 | `operator` | `kubectl-apply` of the pinned CRDs, `helm-upgrade` of cert-manager and the operator chart, env patches | always |
 | `workload` | estate build, `kubectl-apply` of the tier's manifest, converge assert | always |
 
+```mermaid
+flowchart LR
+    CP["cluster-plane<br/><i>clusterMode=provision</i>"] --> AP["aws-plane"]
+    CP --> LS["local-substrate<br/><i>local target</i>"]
+    AP --> OP["operator"]
+    LS --> OP
+    OP --> WL["workload<br/>+ converge assert"]
+    GI["golden-image<br/><i>goldenImageMode=provision</i>"]
+    AP --> GI
+```
+
 `dependsOn` orders them into waves: `cluster-plane`, then `aws-plane` and `local-substrate`, then `operator`, then `workload`. A disabled component satisfies its dependents vacuously, so the same graph serves every combination — on the real target `local-substrate` sits out, and with `clusterMode=reference-existing` so does `cluster-plane`. No wave knows which siblings ran.
 
 Each step carries its own tool's lifecycle rather than a bespoke one. `kubectl-apply` prunes owned-only, with the CRDs pinned `delete: never` because deleting a CRD deletes every custom resource of its kind cluster-wide. `helm-upgrade` rolls back the way Helm rolls back. The env-patches step is a shell step with its reason written down — the chart drops `app.envs` keys it does not know (upstream #52), so they cannot ride the release.
