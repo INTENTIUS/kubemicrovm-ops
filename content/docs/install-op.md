@@ -54,6 +54,12 @@ The operator chart version, the cert-manager version and the m80 image are chant
 
 The `workload` component's last step is `scripts/local/assert-converged.sh`: the image at `SUCCESSFUL`, the tier's VM or replica floor accounted for, the connector `ACTIVE` where the tier declares one. Manifests that apply cleanly and are then refused by the service look identical to healthy ones until this step. A failed state that persists past the operator's own retry window fails the run early, with the operator's log attached; a fresh failure is given the grace to be retried, because the operator genuinely does retry.
 
-## The teardown Op
+## Deploy from CI — the kit ships the pipeline, three ways
+
+`pipelines/` carries the estate's CI declared through chant's github, gitlab and forgejo lexicons and rendered to files an adopter drops in place: `github-check.yml` and `github-deploy.yml` for `.github/workflows/`, `gitlab.yml` for `.gitlab-ci.yml`, `forgejo-check.yml` and `forgejo-deploy.yml` for `.forgejo/workflows/`. One declaration idiom, three forges — the forgejo flavour is authored exactly like the github one and gets its dialect at build.
+
+Each flavour makes the same two claims. *Check* runs on every push with no cluster and no account: typecheck, the lint pack (the webhook's refusals at build time), and the tier matrix against the pinned schemas. *Deploy* is gated — a GitHub environment, GitLab `when: manual`, Forgejo dispatch — because deploying an estate bills an account, and it is the same `chant run all --components` a human types, converge included. Credentials and the reference-existing variables are marked as yours to wire; the deploy refuses to start until they are.
+
+The committed renders are what you copy, so `just pipelines-check` (part of `just check`) fails the build if they drift from the declarations that explain them. Regenerate with `just pipelines`. This repo's own CI stays hand-authored where it does things no adopter needs (the from-scratch e2e, the reviewer-gated real-AWS matrix in `real-e2e.yml` — which is also the reference for the full teardown-guaranteed deploy form).
 
 Teardown remains an Op (`ops/kubemicrovm-teardown.op.ts`), three phases in reverse dependency order — estate, operator, AWS plane. It is the one flow where "run some of it" is normal: tearing down the estate but keeping the operator is an ordinary day-two move, and the phases are cut where those decisions live.
