@@ -61,11 +61,14 @@ export const oidcProvider = providesOidc
   : undefined;
 
 // Deploy-time composition, not build-time: the account is a property of
-// wherever the stack lands. The provider's ARN shape is deterministic, so
-// reference-existing composes the same string the provisioned resource
-// would return.
-const referencedProviderArn = Sub`arn:${AWS.Partition}:iam::${AWS.AccountId}:oidc-provider/${GITHUB_ISSUER}`;
-const providerArn = oidcProvider ? oidcProvider.Arn : referencedProviderArn;
+// wherever the stack lands. The provider's ARN shape is deterministic
+// (issuer URL is the whole identity), so BOTH seam positions compose the
+// same Sub — deliberately not `oidcProvider.Arn`: an attr-ref inside a
+// nested policy document serializes to nothing and the role lands with an
+// empty Principal (found by this stack's first real deploy; the implicit
+// create-order the ref would have carried is restored by DependsOn below).
+const providerArn = Sub`arn:${AWS.Partition}:iam::${AWS.AccountId}:oidc-provider/${GITHUB_ISSUER}`;
+const roleAttributes = providesOidc ? { DependsOn: ["oidcProvider"] } : undefined;
 
 const stackArns = [
   Sub`arn:${AWS.Partition}:cloudformation:${AWS.Region}:${AWS.AccountId}:stack/kubemicrovm-ops-*/*`,
@@ -221,5 +224,5 @@ export const realCiRole = declared
         { Key: "kmv:purpose", Value: "real-e2e-ci" },
         { Key: "kmv:managed-by", Value: "kubemicrovm-ops/ci-plane" },
       ],
-    })
+    }, roleAttributes)
   : undefined;
