@@ -25,8 +25,7 @@ build:
 # render time (`just pipelines`) — same split as fountain-ops, which lints
 # src and never its ci/ declarations.
 lint:
-    npx chant lint src
-    npx chant lint cluster
+    npm run lint
 
 # Note: the tier matrix is the one worth knowing about. It builds all three
 # tiers and checks every emitted field against the pinned CRD schemas, because

@@ -6,7 +6,7 @@
   "description": "KubeMicroVM adoption kit on chant — three tiers (minimal/prod/prod-ha) over two deploy targets (local floci+m80+k3d, or real AWS+EKS).",
   "scripts": {
     "tsc": "tsc --noEmit",
-    "lint": "chant lint .",
+    "lint": "chant lint src && chant lint cluster",
     "test": "vitest run",
     "build": "npm run tsc",
     "synth:aws-plane": "chant build src/aws-plane --lexicon aws -o dist/aws-plane.template.json",
