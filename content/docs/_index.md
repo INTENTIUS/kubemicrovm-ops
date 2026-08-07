@@ -11,7 +11,7 @@ The kit, and the design behind it. [Quick start]({{< relref "quickstart" >}}) if
 | Page | Question it answers |
 |------|---------------------|
 | [Quick start]({{< relref "quickstart" >}}) | How to get a MicroVM running on a laptop, with no AWS account |
-| [Positioning]({{< relref "positioning" >}}) | Why this kit exists and who it is for |
+| [Why this exists]({{< relref "why-this-exists" >}}) | The gap the kit closes, and who it is for |
 | [The space]({{< relref "space" >}}) | Who else is here, the audience now and in a year, risks |
 | [The estate]({{< relref "estate" >}}) | What a KubeMicroVM consumer actually operates |
 | [Tiers and targets]({{< relref "tiers" >}}) | How much estate you deploy, and where it deploys |
