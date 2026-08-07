@@ -156,13 +156,13 @@ export default {
     // the CI chart-pin check used to each carry their own copy (the chart pin
     // lived in three scripts and CI grepped one of them); a declared param is
     // the single place, and `--param`/env still override per run.
-    operatorChartVersion: { type: "string", default: "1.0.11", env: "CHART_VERSION" },
+    operatorChartVersion: { type: "string", default: "1.0.12", env: "CHART_VERSION" },
     // Pinned to what the estate actually runs today. The old script installed
     // unpinned — whatever jetstack shipped that morning.
     certManagerVersion: { type: "string", default: "v1.21.1", env: "CERT_MANAGER_VERSION" },
     // The MicroVMs emulator (local target only). v0.4.0 is the floor: an m80
     // that does not know a flag exits rather than ignoring it (m80#65/#74).
-    m80Image: { type: "string", default: "ghcr.io/intentius/m80:v0.4.0", env: "M80_IMAGE" },
+    m80Image: { type: "string", default: "ghcr.io/intentius/m80:v0.4.1", env: "M80_IMAGE" },
     m80Port: { type: "string", default: "4290", env: "M80_PORT" },
     m80MaxAccountMemoryMib: { type: "string", default: "262144", env: "MAX_ACCOUNT_MEMORY_MIB" },
     m80EnableInjection: { type: "string", enum: ["true", "false"], default: "true", env: "M80_ENABLE_INJECTION" },
@@ -170,7 +170,7 @@ export default {
     // ── Workload inputs ─────────────────────────────────────────────────
     workloadNamespace: { type: "string", default: "microvm-demo", env: "KMV_NAMESPACE" },
     // Pinned by the chart, not chosen by us: every template in
-    // kube-microvm-operator 1.0.11 hardcodes `namespace: kube-microvm`
+    // the chart hardcodes `namespace: kube-microvm` (checked through 1.0.12)
     // and ignores helm's `-n`, so installing anywhere else fails with
     // `namespaces "kube-microvm" not found`.
     operatorNamespace: { type: "string", default: "kube-microvm", env: "KMV_OPERATOR_NAMESPACE" },

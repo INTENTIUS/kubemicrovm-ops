@@ -42,7 +42,7 @@ What the schema cannot express at all moves to the lint pack: cross-resource ref
 
 ## Verified spec shapes
 
-Read off the shipped CRDs at chart 1.0.11 rather than the upstream docs, which is how two assumptions on this site got corrected.
+Read off the shipped CRDs at the pinned chart (1.0.12; byte-identical to 1.0.11's) rather than the upstream docs, which is how two assumptions on this site got corrected.
 
 `MicroVM.spec` carries `imageRef`, `imageVersion`, `desiredState` (`Running` / `Suspended` / `Terminated`), `className`, `networkRef`, `templateRef`, `autoResumeEnabled`, `maxIdleDurationSeconds`, `suspendedDurationSeconds`, `maximumDurationSeconds`, `ingressNetworkConnectors`, `egressNetworkConnectors`, `executionRoleArn`, `region`, `tags`, `importMicroVmId` and `runHookPayload`. The class is referenced by `className`, not a `classRef`.
 

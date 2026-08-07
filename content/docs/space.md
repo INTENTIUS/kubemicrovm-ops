@@ -12,7 +12,7 @@ Findings as of 2026-07-29. AWS Lambda MicroVMs went GA on 2026-06-22, so everyth
 | Actor | What it is | State |
 |-------|-----------|-------|
 | [`aws-controllers-k8s/lambdamicrovms-controller`](https://github.com/aws-controllers-k8s/lambdamicrovms-controller) | AWS's official ACK controller, created the day after GA | v0.1.x, machine-generated, two CRDs (`MicroVM`, `MicroVMImage` under `lambdamicrovms.services.k8s.aws`), raw API CRUD only |
-| [KubeMicroVM](https://github.com/codriverlabs/KubeMicroVM) | The only community controller, and the product layer, replica pools, classes, token sidecar, webhooks, quota, drift | v1.0.11, 63/63 UAT, production-supported matrix |
+| [KubeMicroVM](https://github.com/codriverlabs/KubeMicroVM) | The only community controller, and the product layer, replica pools, classes, token sidecar, webhooks, quota, drift | v1.0.12, 63/63 UAT, production-supported matrix |
 | CloudFormation and CDK | Native at launch for image builds (`AWS::Lambda::MicrovmImage`), running VMs stay API-managed | Shipped |
 | Terraform | Nothing, [open request hashicorp/terraform-provider-aws#48526](https://github.com/hashicorp/terraform-provider-aws/issues/48526) | Absent |
 | chant `MicrovmApp` | Typed composite over the CFN path, one of the first typed IaC surfaces outside CDK | Shipped in the aws lexicon |

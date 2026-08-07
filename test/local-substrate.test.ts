@@ -27,7 +27,7 @@ describe("local-substrate declares m80 on the local target only", () => {
     const yaml = build({ AWS_ENDPOINT_URL: "http://localhost:4566" });
     expect(yaml).toContain("kind: Deployment");
     expect(yaml).toContain("kind: Service");
-    expect(yaml).toContain("ghcr.io/intentius/m80:v0.4.0");
+    expect(yaml).toContain("ghcr.io/intentius/m80:v0.4.1");
     expect(yaml).toContain("-serve-sts");
     // The failure-path harness depends on injection being on by default.
     expect(yaml).toContain("-enable-injection");

@@ -54,9 +54,9 @@ FLOCI_CONTAINER="${FLOCI_CONTAINER:-floci}"
 # pass -serve-sts and -enable-injection, and an m80 that does not know a flag
 # exits rather than ignoring it — so an older tag does not degrade, it
 # crashloops (m80#65 for the first flag, m80#74 for the second).
-M80_IMAGE="${M80_IMAGE:-ghcr.io/intentius/m80:v0.4.0}"
+M80_IMAGE="${M80_IMAGE:-ghcr.io/intentius/m80:v0.4.1}"
 M80_PORT="${M80_PORT:-4290}"
-CHART_VERSION="${CHART_VERSION:-1.0.11}"
+CHART_VERSION="${CHART_VERSION:-1.0.12}"
 AWS_REGION="${AWS_REGION:-us-east-1}"
 # m80 defaults to the account memory ceiling a fresh AWS account has: 4096 MiB.
 # A prod-ha deployment at 4096 MiB per VM is two VMs and nothing left over, so

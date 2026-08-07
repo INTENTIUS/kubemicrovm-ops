@@ -44,7 +44,7 @@ M80_IMAGE=m80:candidate just minimal-local-e2e
 
 Every one of these was found by running the stack, and every one is accepted at apply time and fails later.
 
-**The operator chart pins its own namespace.** Every template in `kube-microvm-operator` 1.0.11 hardcodes `namespace: kube-microvm` and ignores helm's `-n`. Installing anywhere else fails with `namespaces "kube-microvm" not found`, naming a namespace you did not ask for. The kit defaults `operatorNamespace` to `kube-microvm` for that reason and not because it is a nice name.
+**The operator chart pins its own namespace.** Every template in `kube-microvm-operator` hardcodes (checked through 1.0.12) `namespace: kube-microvm` and ignores helm's `-n`. Installing anywhere else fails with `namespaces "kube-microvm" not found`, naming a namespace you did not ask for. The kit defaults `operatorNamespace` to `kube-microvm` for that reason and not because it is a nice name.
 
 **`baseImageArn` is required, though the CRD does not say so.** `MicroVMImage`'s schema marks nothing required, so an image without it applies cleanly and then fails every reconcile with `Value null at 'baseImageArn' failed to satisfy constraint: Member must not be null`. The kit defaults it to the AWS-managed base image their own `setup-test-env.sh` prints, region-substituted.
 
@@ -83,7 +83,7 @@ The levers are keyed by resource name and arm *before* the resource exists — "
 
 It is destructive to the estate on purpose. `just apply-tier <tier>` puts it back.
 
-### It needs v0.4.0, which is the default
+### It needs v0.4.0 or newer; the pin is v0.4.1
 
 `local-up.sh` passes `-enable-injection` and leaves it on. This page used to say the opposite, and said it for a real reason: the flag landed on m80 main seven hours after v0.3.0 was tagged, so for a while no published image carried it ([m80#74](https://github.com/INTENTIUS/m80/issues/74)) and turning it on crashloopped the emulator — an unknown flag is not ignored, the binary exits. v0.4.0 carries it and is the pinned default, so the levers work out of the box and `local-e2e` runs `just break-it prod-ha` on every push.
 

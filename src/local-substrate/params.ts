@@ -22,7 +22,7 @@ function optional(v: unknown): string | undefined {
 }
 
 export const operatorNamespace = optional(params.operatorNamespace) ?? "kube-microvm";
-export const m80Image = optional(params.m80Image) ?? "ghcr.io/intentius/m80:v0.4.0";
+export const m80Image = optional(params.m80Image) ?? "ghcr.io/intentius/m80:v0.4.1";
 export const m80Port = Number(optional(params.m80Port) ?? "4290");
 export const m80MaxAccountMemoryMib = optional(params.m80MaxAccountMemoryMib) ?? "262144";
 export const m80EnableInjection = (optional(params.m80EnableInjection) ?? "true") === "true";

@@ -44,7 +44,7 @@ fi
 AWS_REGION="${AWS_REGION:-us-east-1}"
 STACK_NAME="${STACK_NAME:-kubemicrovm-ops-aws-plane}"
 NS="${NS:-kube-microvm}"
-CHART_VERSION="${CHART_VERSION:-1.0.11}"
+CHART_VERSION="${CHART_VERSION:-1.0.12}"
 ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
 
 export AWS_REGION
