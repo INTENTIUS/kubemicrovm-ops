@@ -186,22 +186,38 @@ curl -sf "${AWS_ENDPOINT_URL}/_localstack/health" >/dev/null || {
 # window, so a *fresh* estate against a *stale* m80 answers "already exists".
 # Reusing both together is consistent; reusing one is not. Since m80 lives in
 # the cluster, keeping the cluster keeps them in step.
+# The cluster's shape lives in cluster/local.ts, not in flags here — chant
+# emits the SimpleConfig and k3d consumes it verbatim (`--wait`/`--timeout`
+# stay flags: lifecycle, not shape). The declaration writes the kubeconfig
+# entry but never switches to it; the use-context below is the one deliberate
+# switch. The declared name is the name: a CLUSTER override that disagrees
+# would create one cluster and talk to another, so it refuses instead.
+if [ "${CLUSTER}" != "kubemicrovm-local" ]; then
+    echo "CLUSTER=${CLUSTER} disagrees with the declared cluster (cluster/local.ts:" >&2
+    echo "kubemicrovm-local). The declaration is where the name changes." >&2
+    exit 1
+fi
+build_cluster_config() {
+    (cd "${ROOT}" && npx chant build cluster -o dist/k3d-local.yaml --format yaml >/dev/null)
+}
 if k3d cluster list --no-headers 2>/dev/null | awk '{print $1}' | grep -qx "${CLUSTER}"; then
     if [ "${RECREATE_CLUSTER:-0}" = "1" ]; then
         echo "==> cluster ${CLUSTER} — rebuilding, RECREATE_CLUSTER=1"
         k3d cluster delete "${CLUSTER}" >/dev/null 2>&1 || true
-        k3d cluster create "${CLUSTER}" --agents 1 --wait --timeout 300s >/dev/null
+        build_cluster_config
+        k3d cluster create --config "${ROOT}/dist/k3d-local.yaml" --wait --timeout 300s >/dev/null
         created_cluster=1
     else
         echo "==> cluster ${CLUSTER} already up, reusing it"
         echo "    RECREATE_CLUSTER=1 to rebuild from nothing"
-        kubectl config use-context "k3d-${CLUSTER}" >/dev/null 2>&1 || true
     fi
 else
     echo "==> cluster ${CLUSTER}"
-    k3d cluster create "${CLUSTER}" --agents 1 --wait --timeout 300s >/dev/null
+    build_cluster_config
+    k3d cluster create --config "${ROOT}/dist/k3d-local.yaml" --wait --timeout 300s >/dev/null
     created_cluster=1
 fi
+kubectl config use-context "k3d-${CLUSTER}" >/dev/null
 
 # A locally built image is in no registry, so k3d cannot pull it. Importing is
 # what lets a contributor point the harness at their own build:
