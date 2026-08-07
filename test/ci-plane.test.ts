@@ -52,6 +52,15 @@ describe("the trust policy is the gate's other half", () => {
     expect(cond["token.actions.githubusercontent.com:aud"]).toBe("sts.amazonaws.com");
   });
 
+  test("the provisioned principal is a real ARN, not an empty object", () => {
+    // The first real deploy of this stack failed with "Principal cannot be
+    // empty": an attr-ref inside a nested policy document serializes to
+    // nothing. Both seam positions compose the deterministic Sub instead,
+    // and this pins that the provisioned path never regresses to the ref.
+    const principal = role(provisioned).Properties.AssumeRolePolicyDocument.Statement[0].Principal;
+    expect(JSON.stringify(principal)).toContain("oidc-provider/token.actions.githubusercontent.com");
+  });
+
   test("repo and environment are params, so a fork points the claim at itself", () => {
     const t = build({ KMV_GITHUB_REPO: "someone/fork", KMV_GITHUB_ENVIRONMENT: "their-gate" });
     const cond = role(t).Properties.AssumeRolePolicyDocument.Statement[0].Condition.StringEquals;
