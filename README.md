@@ -103,3 +103,7 @@ The aws lexicon needs 0.37.1 or later for the same class of reason — `MicrovmA
 | [m80](https://github.com/INTENTIUS/m80) | The MicroVMs API emulator the local target runs against |
 | [floci](https://github.com/lex00/floci) | The AWS emulator serving the local target's prerequisites |
 | [behold](https://github.com/INTENTIUS/behold) | The live control plane `just view` opens |
+
+## Licence
+
+[Apache 2.0](./LICENSE).
