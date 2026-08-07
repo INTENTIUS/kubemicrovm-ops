@@ -18,7 +18,9 @@ Nothing to a running MicroVM estate, one command, no AWS account. The AWS plane 
 ## Give this to your agent
 
 ```
-Clone https://github.com/INTENTIUS/kubemicrovm-ops and run:
+You need Docker running; everything else (k3d, kubectl, helm, the AWS CLI,
+node, npm, just) ./go checks and installs itself. Clone
+https://github.com/INTENTIUS/kubemicrovm-ops and run:
 
   ./go --yes           # nothing → a full KubeMicroVM estate on k3d + emulators (~5 min)
   just validate        # converged — the operator accepted it — not merely applied
