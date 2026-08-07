@@ -27,7 +27,7 @@ const target = resolveTarget({
 
 const region = (params.region as string | undefined) ?? "us-east-1";
 const operatorNamespace = (params.operatorNamespace as string | undefined) ?? "kube-microvm";
-const chartVersion = (params.operatorChartVersion as string | undefined) ?? "1.0.11";
+const chartVersion = (params.operatorChartVersion as string | undefined) ?? "1.0.12";
 const certManagerVersion = (params.certManagerVersion as string | undefined) ?? "v1.21.1";
 
 // The operator's endpoint override, local target only — on real AWS the

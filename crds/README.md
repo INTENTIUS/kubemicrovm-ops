@@ -2,7 +2,7 @@
 
 Copied verbatim from the `crds/` directory of
 
-    oci://ghcr.io/codriverlabs/helm/kube-microvm-operator:1.0.11
+    oci://ghcr.io/codriverlabs/helm/kube-microvm-operator:1.0.12
 
 They are here for two reasons. `test/tier-matrix.test.ts` reads them to check
 that every field the kit emits is one the schema actually declares — a typo in

@@ -24,7 +24,7 @@ That is one command doing several things, in this order.
 3. Uploads a sample artifact to the bucket — a real one, a Dockerfile and a node server on 8080, because that is the contract the real build service holds a zip to. m80 never opens it, but an estate seeded with something the real builder would refuse is not an honest rehearsal.
 4. Creates the k3d cluster — one server, one agent, its shape declared in `cluster/local.ts` and built into the config k3d consumes — and installs cert-manager, which the operator's webhooks need.
 5. Starts [m80](https://github.com/INTENTIUS/m80) in that cluster — the MicroVMs API the operator calls, plus the one `sts:GetCallerIdentity` its startup gate blocks on.
-6. Applies KubeMicroVM's CRDs and installs the operator chart pinned to 1.0.11, pointed at m80.
+6. Applies KubeMicroVM's CRDs and installs the operator chart pinned to 1.0.12, pointed at m80.
 7. Builds this kit's estate at the `minimal` tier and applies it.
 
 When it finishes it prints the operator's own connectivity line, which is the thing worth reading:

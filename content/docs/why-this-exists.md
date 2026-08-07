@@ -7,7 +7,7 @@ weight: 10
 
 ## What KubeMicroVM is
 
-[KubeMicroVM](https://github.com/codriverlabs/KubeMicroVM) is a Kubernetes operator and CLI for AWS Lambda MicroVMs, built with Quarkus, JOSDK, and GraalVM. It defines five CRDs under `lambda.aws.amazon.com/v1alpha1` and reconciles them against the MicroVM service. It adds workload orchestration, replica pools, VPC egress networking, admission control, quota guardrails, and sidecar token delivery on top of the raw service API. As of this writing the latest stable release is v1.0.11.
+[KubeMicroVM](https://github.com/codriverlabs/KubeMicroVM) is a Kubernetes operator and CLI for AWS Lambda MicroVMs, built with Quarkus, JOSDK, and GraalVM. It defines five CRDs under `lambda.aws.amazon.com/v1alpha1` and reconciles them against the MicroVM service. It adds workload orchestration, replica pools, VPC egress networking, admission control, quota guardrails, and sidecar token delivery on top of the raw service API. As of this writing the latest stable release is v1.0.12.
 
 ## The gap
 
