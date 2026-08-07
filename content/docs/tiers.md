@@ -88,7 +88,7 @@ just prod-ha-live-e2e
 
 `minimal` and `prod-ha` run on every push and pull request, on a hosted runner with no AWS account — `.github/workflows/local-e2e.yml`. It applies `prod-ha` over a live `minimal` estate rather than from scratch, so the tier change is exercised too, and asserts convergence rather than a clean apply: the image reaching `SUCCESSFUL`, the connector `ACTIVE`, and `readyReplicas` equal to the tier's floor. `prod` declares nothing `prod-ha` does not, so it is checked by the tier matrix and not deployed.
 
-The live recipes are on-demand, gated, and each one names its cost in its comment.
+The live recipes are on-demand, gated, and each one names its cost in its comment. The gated form also exists as a workflow: `.github/workflows/real-e2e.yml` runs any tier against real AWS behind a reviewer-gated environment, with teardown guaranteed and a final sweep that fails the run if anything in the account survived it. Its one-time account setup — the OIDC provider and role are declared estate (`src/ci-plane`), the GitHub half is scripted — is `just setup-real-ci`.
 
 ## Adoption seams
 
