@@ -71,6 +71,7 @@ Steps 3–5 also exist as a reviewer-gated workflow — `real-e2e.yml`, dispatch
 | Deploy | chant components in dependency waves — cluster plane, AWS plane, operator, workload — each step carrying its own tool's lifecycle |
 | Converge | Applied is not deployed: the last step waits for the operator's verdict, fails fast on the service's, and prints the operator's own log when it does |
 | Lifecycle | Observe (`lifecycle diff --live`) through authoritative (the component run, prunes scoped to owned-and-undeclared), per environment |
+| CI | The estate's pipelines shipped for GitHub, GitLab and Forgejo — declared, rendered, drift-checked; check free on every push, deploy gated |
 
 ## Where it stands
 
