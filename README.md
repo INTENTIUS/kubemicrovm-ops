@@ -63,6 +63,7 @@ An **adoption seam** is whether the kit provisions a prerequisite, references on
 | `ops/` | The install and teardown Ops — the ordering, as a durable workflow |
 | `scripts/install/` | The steps the Ops call, on either target |
 | `scripts/local/` | k3d + floci + m80, then the component run |
+| `pipelines/` | The estate's CI, declared and rendered for GitHub, GitLab and Forgejo |
 | `scripts/live/` | Real AWS and a real EKS cluster |
 | `content/docs/` | Design documents |
 | `themes/hugo-book` | Theme (git submodule) |

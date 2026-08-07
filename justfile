@@ -20,8 +20,13 @@ build:
     npx tsc --noEmit
 
 # chant lint — core rules plus the post-synth checks.
+# The estate dirs, not pipelines/: the KMV lint pack is for the estate, and
+# the pipeline declarations get the forge lexicons' own post-synth checks at
+# render time (`just pipelines`) — same split as fountain-ops, which lints
+# src and never its ci/ declarations.
 lint:
-    npx chant lint .
+    npx chant lint src
+    npx chant lint cluster
 
 # Note: the tier matrix is the one worth knowing about. It builds all three
 # tiers and checks every emitted field against the pinned CRD schemas, because
@@ -37,7 +42,7 @@ ops-build:
     npm run ops:build
 
 # Everything CI-relevant: typecheck, lint, tests.
-check: build lint test
+check: build lint test pipelines-check
 
 # Synthesize both planes for the current tier and target.
 synth:
@@ -297,3 +302,30 @@ publish:
 # Look at the exported bundle before publishing it, on a plain static server.
 preview-export:
     npx serve dist/behold-export
+
+# ── Shipped pipelines: the estate's CI, three forges, declared ────────────
+
+# Render the shipped pipelines from their declarations under pipelines/.
+pipelines:
+    npx chant build pipelines/github/check -o pipelines/github-check.yml --format yaml
+    npx chant build pipelines/github/deploy -o pipelines/github-deploy.yml --format yaml
+    npx chant build pipelines/gitlab -o pipelines/gitlab.yml --format yaml
+    npx chant build pipelines/forgejo/check -o pipelines/forgejo-check.yml --format yaml
+    npx chant build pipelines/forgejo/deploy -o pipelines/forgejo-deploy.yml --format yaml
+
+# Note: the committed renders are what an adopter copies, so they must never
+# drift from the declarations that explain them. Same rule as fountain-ops's
+# ci-check, applied to artifacts that ship rather than run here.
+
+# The committed pipeline renders match their declarations.
+pipelines-check:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    tmp="$(mktemp -d)"; trap 'rm -rf "$tmp"' EXIT
+    for d in github/check github/deploy gitlab forgejo/check forgejo/deploy; do
+      out="$(echo "$d" | tr '/' '-').yml"
+      npx chant build "pipelines/$d" -o "$tmp/$out" --format yaml >/dev/null 2>&1
+      diff -u "pipelines/$out" "$tmp/$out" >/dev/null || {
+        echo "pipelines/$out drifted from its declaration — run: just pipelines" >&2; exit 1; }
+    done
+    echo "shipped pipelines match their declarations (5 checked)"

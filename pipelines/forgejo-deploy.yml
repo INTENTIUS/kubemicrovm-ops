@@ -1,0 +1,32 @@
+name: estate-deploy
+
+on:
+  workflow_dispatch: {}
+
+jobs:
+  deploy:
+    runs-on: docker
+    timeout-minutes: 150
+    steps:
+      - name: Checkout
+        uses: https://code.forgejo.org/actions/checkout@v4
+      - name: Setup Node.js
+        uses: https://code.forgejo.org/actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - name: Install
+        run: npm ci
+      - name: Credentials — yours to wire
+        run: |
+          # Wire AWS credentials for the runner (secrets, or a credentials file
+          # the runner host provides). The deploy refuses to start without them.
+          test -n "${AWS_REGION:-}" || { echo "no credentials wired — read this step" >&2; exit 1; }
+      - name: Deploy — the component waves, converge included
+        env:
+          kmv_tier: minimal
+          kmv_cluster_mode: reference-existing
+        run: npx chant run all --components --env dev
+      - name: What the operator saw
+        if: always()
+        run: kubectl -n kube-microvm logs deploy/kube-microvm-operator --tail=100 || true

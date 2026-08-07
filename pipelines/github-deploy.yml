@@ -1,0 +1,47 @@
+name: estate-deploy
+
+on:
+  workflow_dispatch: {}
+
+permissions:
+  contents: read
+
+concurrency:
+  group: estate-deploy
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 150
+    permissions:
+      contents: read
+      id-token: write
+    environment: deploy
+    steps:
+      - name: Checkout
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+      - name: Setup Node.js
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: '22'
+          cache: npm
+      - name: Install
+        run: npm ci
+      - name: Credentials — yours to wire
+        run: |
+          # Replace this step with your credential source. OIDC (preferred):
+          #   - uses: aws-actions/configure-aws-credentials@v4
+          #     with:
+          #       role-to-assume: ${{ vars.DEPLOY_ROLE_ARN }}
+          #       aws-region: us-east-1
+          # This kit declares such a role in src/ci-plane (see just setup-real-ci).
+          test -n "${AWS_REGION:-}" || { echo "no credentials wired — read this step" >&2; exit 1; }
+      - name: Deploy — the component waves, converge included
+        env:
+          kmv_tier: minimal
+          kmv_cluster_mode: reference-existing
+        run: npx chant run all --components --env dev
+      - name: What the operator saw
+        if: always()
+        run: kubectl -n kube-microvm logs deploy/kube-microvm-operator --tail=100 || true

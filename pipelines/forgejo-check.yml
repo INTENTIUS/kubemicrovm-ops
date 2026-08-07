@@ -1,0 +1,28 @@
+name: estate-check
+
+on:
+  push:
+    branches:
+      - main
+  pull_request: {}
+
+jobs:
+  check:
+    runs-on: docker
+    timeout-minutes: 15
+    steps:
+      - name: Checkout
+        uses: https://code.forgejo.org/actions/checkout@v4
+      - name: Setup Node.js
+        uses: https://code.forgejo.org/actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - name: Install
+        run: npm ci
+      - name: Typecheck
+        run: npx tsc --noEmit
+      - name: Lint — the webhook's checks at build time
+        run: npx chant lint .
+      - name: Tests — the tier matrix against the pinned CRD schemas
+        run: npx vitest run
