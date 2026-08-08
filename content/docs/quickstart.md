@@ -103,14 +103,13 @@ $ just doctor
 
 ## Look at it
 
-Optional, and the only step here that needs a second repository:
+Optional, and needs nothing beyond npm:
 
 ```sh
-git clone https://github.com/INTENTIUS/behold ../behold
 just view
 ```
 
-Opens [behold](https://github.com/INTENTIUS/behold) on the project: both planes in one graph, the AWS roles and buckets next to the custom resources that reference them, coloured by drift. It looks for a checkout at `../behold`, or wherever `BEHOLD_DIR` points, and says so rather than failing obscurely if there is none.
+Opens [behold](https://github.com/INTENTIUS/behold) on the project: both planes in one graph, the AWS roles and buckets next to the custom resources that reference them, coloured by drift. It runs the published `@intentius/behold` CLI via npx; a source checkout at `../behold` (or wherever `BEHOLD_DIR` points) is preferred when one exists, for people hacking on behold itself.
 
 Stand the estate up first — this reads a live cluster rather than only your source. See [Operating with behold]({{< relref "behold" >}}).
 

@@ -184,21 +184,15 @@ view:
     #!/usr/bin/env bash
     set -euo pipefail
     kit="$(pwd)"
+    # A behold checkout (BEHOLD_DIR, or ../behold) runs from source — the dev
+    # loop. Without one, the published CLI serves the same picture; behold#172
+    # put @intentius/behold on npm, so the quick start no longer needs a clone.
     behold="${BEHOLD_DIR:-../behold}"
-    if [ ! -d "${behold}" ]; then
-        echo "no behold checkout at ${behold}" >&2
-        echo "" >&2
-        echo "behold is the live control plane this opens the estate in. It is a" >&2
-        echo "separate repository and the quick start does not clone it:" >&2
-        echo "" >&2
-        echo "  git clone https://github.com/INTENTIUS/behold ${behold}" >&2
-        echo "  just view" >&2
-        echo "" >&2
-        echo "Or point BEHOLD_DIR at a checkout you already have." >&2
-        echo "The estate is fine without it — this is a way to look, not a step." >&2
-        exit 1
+    if [ -d "${behold}" ]; then
+        cd "${behold}" && npm run dev -- serve "${kit}" --env "${KMV_ENV:-dev}"
+    else
+        npx --yes @intentius/behold serve "${kit}" --env "${KMV_ENV:-dev}"
     fi
-    cd "${behold}" && npm run dev -- serve "${kit}" --env "${KMV_ENV:-dev}"
 
 # Note: reads the estate that is standing right now — stand one up first, at
 # the tier you want the snapshot to show. `just prod-ha-local-e2e` is the one
