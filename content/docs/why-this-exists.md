@@ -23,7 +23,7 @@ The install is ordered and cross-plane. IAM stack before operator, operator befo
 
 ## What the kit is
 
-kubemicrovm-ops is an adoption kit built on [chant](https://intentius.io/chant/), a compiler that turns typed TypeScript declarations into the native artifacts each platform already speaks. It declares the full estate across both planes, adds a lint pack that moves the webhook's checks and the service limits to build time, and deploys as components in dependency waves — cluster plane, AWS plane, operator, workload — the same command on a laptop and on real AWS.
+kubemicrovm-ops is an adoption kit built on [chant](https://intentius.io/chant/), a compiler that turns TypeScript declarations into the native artifacts each platform already speaks. It declares the full estate across both planes, adds a lint pack that moves the webhook's checks and the service limits to build time, and deploys as components in dependency waves — cluster plane, AWS plane, operator, workload — the same command on a laptop and on real AWS.
 
 The output is standard. CloudFormation JSON for the AWS plane, plain Kubernetes YAML for the CRs. A team that stops using the kit keeps working artifacts. This matches chant's walk-away principle. Nothing kit-specific survives into the output.
 
